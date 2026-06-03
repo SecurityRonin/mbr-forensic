@@ -19,6 +19,7 @@ use crate::gap::Gap;
 use crate::mbr::MbrSector;
 use crate::partition::TypeCode;
 use crate::signature::DetectedFs;
+use crate::wipe::FillPattern;
 
 /// LBA below which a pre-partition gap is considered benign (classic
 /// track-zero alignment leaves sectors 1–62 reserved before the first
@@ -184,6 +185,12 @@ pub enum AnomalyKind {
         lba_end: u64,
         byte_size: u64,
     },
+    /// An unpartitioned region carries a deliberate wipe pattern (uniform
+    /// non-zero, alternating, etc.) — an anti-forensic / destruction trace.
+    WipedRegion {
+        lba_start: u64,
+        pattern: FillPattern,
+    },
 
     // ── Semantic / content ───────────────────────────────────────────────────
     /// Declared partition type differs from detected filesystem magic.
@@ -223,6 +230,7 @@ impl AnomalyKind {
             | K::ProtectiveMbrUndersized { .. }
             | K::HiddenGpt
             | K::SpoofedProtectiveMbr
+            | K::WipedRegion { .. }
             | K::HighEntropySlack { .. } => Severity::High,
 
             // EBR slack severity scales with its entropy.
@@ -285,6 +293,7 @@ impl AnomalyKind {
             K::PrePartitionSpace { .. } => "MBR-GAP-PRE",
             K::InterPartitionGap { .. } => "MBR-GAP-MID",
             K::PostPartitionSpace { .. } => "MBR-GAP-POST",
+            K::WipedRegion { .. } => "MBR-GAP-WIPED",
             K::SignatureMismatch { .. } => "MBR-PART-SIGMISMATCH",
             K::WipedBootCode => "MBR-BOOT-WIPED",
             K::ErasedBootCode => "MBR-BOOT-ERASED",
@@ -379,6 +388,10 @@ impl AnomalyKind {
                 lba_end,
                 byte_size,
             } => gap_note("Post-partition space", *lba_start, *lba_end, *byte_size),
+            K::WipedRegion { lba_start, pattern } => format!(
+                "Unpartitioned region at LBA {lba_start} shows a deliberate wipe pattern: {}",
+                pattern.label()
+            ),
             K::SignatureMismatch {
                 index,
                 declared,

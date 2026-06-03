@@ -116,6 +116,7 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
 
     let ebr_chain = walk_extended(reader, &mbr, &mut scan, &mut findings);
     let gaps = check_gaps(&scan.extents, disk_size_bytes, last_lba, &mut findings);
+    check_gap_content(reader, &gaps, &mut findings);
 
     let disk_serial = mbr.disk_serial;
     diag::analysis_complete(
@@ -504,6 +505,42 @@ fn check_gaps(
         findings.record(gap_anomaly_kind(gap), lba_to_byte(gap.lba_start));
     }
     gaps
+}
+
+/// Number of bytes sampled from the start of each gap to classify its fill.
+const GAP_SAMPLE_BYTES: usize = 4096;
+
+/// Sample the start of each unpartitioned gap and flag any that carry a
+/// deliberate wipe pattern (uniform non-zero, alternating, etc.).
+///
+/// All-zero gaps — ordinary unallocated space — are never flagged. Read
+/// failures (truncated images) are skipped silently; gap *existence* is already
+/// reported by [`check_gaps`].
+fn check_gap_content<R: Read + Seek>(reader: &mut R, gaps: &[Gap], findings: &mut Findings) {
+    for gap in gaps {
+        let byte_offset = lba_to_byte(gap.lba_start);
+        let sample_len = gap.byte_size.min(GAP_SAMPLE_BYTES as u64) as usize;
+        if sample_len == 0 {
+            continue;
+        }
+        if reader.seek(SeekFrom::Start(byte_offset)).is_err() {
+            continue;
+        }
+        let mut buf = vec![0u8; sample_len];
+        if reader.read_exact(&mut buf).is_err() {
+            continue;
+        }
+        let pattern = crate::wipe::classify(&buf);
+        if pattern.is_deliberate_wipe() {
+            findings.record(
+                AnomalyKind::WipedRegion {
+                    lba_start: gap.lba_start,
+                    pattern,
+                },
+                byte_offset,
+            );
+        }
+    }
 }
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
