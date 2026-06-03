@@ -81,8 +81,13 @@ impl Findings {
 
 /// Primary-table scan output threaded into the EBR and gap stages.
 struct PrimaryScan {
-    /// `(lba_start, lba_end)` inclusive extents of every non-empty partition.
+    /// `(lba_start, lba_end)` inclusive extents of every non-empty partition
+    /// (including extended containers) — used for gap analysis.
     extents: Vec<(u64, u64)>,
+    /// `(id, lba_start, lba_end)` for *data* partitions only — non-extended
+    /// primaries and logicals, used for overlap detection. Extended containers
+    /// are excluded so their logicals are not flagged as overlapping them.
+    overlap_extents: Vec<(usize, u64, u64)>,
     /// Per-partition forensic summaries.
     summaries: Vec<PartitionSummary>,
 }
@@ -118,9 +123,13 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
     let last_lba = disk_last_lba(disk_size_bytes);
     check_gpt(&mbr, last_lba, gpt_header, &mut findings);
     let mut scan = scan_primary_entries(reader, &mbr, disk_size_bytes, last_lba, &mut findings);
-    check_overlaps(&scan.extents, &mut findings);
 
-    let ebr_chain = walk_extended(reader, &mbr, &mut scan, &mut findings);
+    let ebr_chain = walk_extended(reader, &mbr, &mut scan, disk_size_bytes, &mut findings);
+    // Overlap detection runs on data partitions (non-extended primaries +
+    // logicals) AFTER the EBR walk, so logical-partition overlaps are caught.
+    // Extended containers are excluded — their logicals living inside them is
+    // expected, not an overlap.
+    check_overlaps(&scan.overlap_extents, &mut findings);
     let gaps = check_gaps(&scan.extents, disk_size_bytes, last_lba, &mut findings);
     check_gap_content(reader, &gaps, &mut findings);
 
@@ -366,6 +375,7 @@ fn scan_primary_entries<R: Read + Seek>(
     findings: &mut Findings,
 ) -> PrimaryScan {
     let mut extents = Vec::new();
+    let mut overlap_extents = Vec::new();
     let mut summaries = Vec::new();
 
     for (i, entry) in mbr.entries.iter().enumerate() {
@@ -418,22 +428,16 @@ fn scan_primary_entries<R: Read + Seek>(
         }
 
         extents.push((lba_start, lba_end));
+        // Extended containers are excluded from overlap detection — their
+        // logicals living inside them is expected, not an overlap.
+        if !entry.is_extended() {
+            overlap_extents.push((i, lba_start, lba_end));
+        }
 
         check_vbr(reader, i, lba_start, byte_offset, disk_size_bytes, findings);
 
-        let detected_fs = detect_partition_fs(reader, byte_offset, disk_size_bytes);
-        if let Some(detected) = detected_fs {
-            if signature::type_conflicts(entry.type_code.family(), detected) {
-                findings.record(
-                    AnomalyKind::SignatureMismatch {
-                        index: i,
-                        declared: entry.type_code,
-                        detected,
-                    },
-                    byte_offset,
-                );
-            }
-        }
+        let detected_fs =
+            detect_and_check_fs(reader, i, byte_offset, entry.type_code, disk_size_bytes, findings);
 
         summaries.push(PartitionSummary {
             index: i,
@@ -446,7 +450,38 @@ fn scan_primary_entries<R: Read + Seek>(
         });
     }
 
-    PrimaryScan { extents, summaries }
+    PrimaryScan {
+        extents,
+        overlap_extents,
+        summaries,
+    }
+}
+
+/// Fingerprint a partition's filesystem and flag a declared-vs-detected
+/// mismatch. Shared by the primary scan and the EBR logical walk so both get
+/// identical scrutiny. Returns the detected filesystem (if any).
+fn detect_and_check_fs<R: Read + Seek>(
+    reader: &mut R,
+    index: usize,
+    byte_offset: u64,
+    declared: crate::partition::TypeCode,
+    disk_size_bytes: u64,
+    findings: &mut Findings,
+) -> Option<DetectedFs> {
+    let detected_fs = detect_partition_fs(reader, byte_offset, disk_size_bytes);
+    if let Some(detected) = detected_fs {
+        if signature::type_conflicts(declared.family(), detected) {
+            findings.record(
+                AnomalyKind::SignatureMismatch {
+                    index,
+                    declared,
+                    detected,
+                },
+                byte_offset,
+            );
+        }
+    }
+    detected_fs
 }
 
 /// Flag a primary entry whose packed CHS first/last addresses contradict their
@@ -509,24 +544,26 @@ fn check_vbr<R: Read + Seek>(
     }
 }
 
-/// Detect overlapping partition extents.
-fn check_overlaps(extents: &[(u64, u64)], findings: &mut Findings) {
+/// Detect overlapping data-partition extents.
+///
+/// Operates on `(id, lba_start, lba_end)` triples for non-extended primaries and
+/// logicals (extended containers excluded — see [`PrimaryScan::overlap_extents`]),
+/// so overlaps among logicals and between logicals and primaries are caught.
+fn check_overlaps(extents: &[(usize, u64, u64)], findings: &mut Findings) {
     let mut sorted = extents.to_vec();
-    sorted.sort_by_key(|&(start, _)| start);
+    sorted.sort_by_key(|&(_, start, _)| start);
     for pair in sorted.windows(2) {
-        let (_, a_end) = pair[0];
-        let (b_start, _) = pair[1];
+        let (a_id, _, a_end) = pair[0];
+        let (b_id, b_start, _) = pair[1];
         if b_start <= a_end {
-            let a = extents.iter().position(|&e| e == pair[0]).unwrap_or(0);
-            let b = extents.iter().position(|&e| e == pair[1]).unwrap_or(1);
             findings.record(
                 AnomalyKind::OverlappingPartitions {
-                    a,
-                    b,
+                    a: a_id,
+                    b: b_id,
                     a_end,
                     b_start,
                 },
-                entry_offset(a),
+                entry_offset(a_id.min(3)),
             );
         }
     }
@@ -538,6 +575,7 @@ fn walk_extended<R: Read + Seek>(
     reader: &mut R,
     mbr: &MbrSector,
     scan: &mut PrimaryScan,
+    disk_size_bytes: u64,
     findings: &mut Findings,
 ) -> EbrChain {
     let Some(ext) = mbr.entries.iter().find(|e| e.is_extended()) else {
@@ -582,15 +620,32 @@ fn walk_extended<R: Read + Seek>(
         let lba_end = lba_start
             .saturating_add(ebr.logical.lba_count as u64)
             .saturating_sub(1);
+        let byte_offset = lba_to_byte(lba_start);
+        let index = EBR_INDEX_BASE + scan.summaries.len();
+
         scan.extents.push((lba_start, lba_end));
+        scan.overlap_extents.push((index, lba_start, lba_end));
+
+        // Logical partitions get the same scrutiny as primaries: BPB
+        // hidden-sectors relocation check and FS signature-mismatch detection.
+        check_vbr(reader, index, lba_start, byte_offset, disk_size_bytes, findings);
+        let detected_fs = detect_and_check_fs(
+            reader,
+            index,
+            byte_offset,
+            ebr.logical.type_code,
+            disk_size_bytes,
+            findings,
+        );
+
         scan.summaries.push(PartitionSummary {
-            index: EBR_INDEX_BASE + scan.summaries.len(),
+            index,
             lba_start,
             lba_end,
-            byte_offset: lba_to_byte(lba_start),
+            byte_offset,
             byte_size: lba_to_byte(ebr.logical.lba_count as u64),
             declared_type: ebr.logical.type_code,
-            detected_fs: None,
+            detected_fs,
         });
     }
 
