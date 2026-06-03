@@ -113,6 +113,7 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
     check_disk_signature(&mbr, boot_code_id, &mut findings);
     check_reserved(&mbr, &mut findings);
     check_bootable_flags(&mbr, &mut findings);
+    check_duplicate_entries(&mbr, &mut findings);
 
     let last_lba = disk_last_lba(disk_size_bytes);
     check_gpt(&mbr, last_lba, gpt_header, &mut findings);
@@ -304,6 +305,29 @@ fn check_gpt(mbr: &MbrSector, last_lba: u64, header_present: bool, findings: &mu
     }
 }
 
+/// Flag pairs of non-empty primary entries that describe the identical extent
+/// (same start LBA and sector count) — a duplicate left by hand-editing or a
+/// faulty imaging tool. Each colliding pair is reported once (lowest indices).
+fn check_duplicate_entries(mbr: &MbrSector, findings: &mut Findings) {
+    let e = &mbr.entries;
+    for a in 0..e.len() {
+        if e[a].is_empty() {
+            continue;
+        }
+        for b in (a + 1)..e.len() {
+            if !e[b].is_empty()
+                && e[a].lba_start == e[b].lba_start
+                && e[a].lba_count == e[b].lba_count
+            {
+                findings.record(
+                    AnomalyKind::DuplicatePartitionEntry { a, b },
+                    entry_offset(a),
+                );
+            }
+        }
+    }
+}
+
 /// Flag a non-zero reserved field (bytes 444–445).
 fn check_reserved(mbr: &MbrSector, findings: &mut Findings) {
     if mbr.reserved != [0, 0] {
@@ -361,6 +385,18 @@ fn scan_primary_entries<R: Read + Seek>(
         }
         if entry.is_empty() {
             continue;
+        }
+
+        // Status byte must be 0x00 (inactive) or 0x80 (bootable); anything else
+        // is a spec violation and a manual-edit / tooling artifact.
+        if entry.status != 0x00 && entry.status != 0x80 {
+            findings.record(
+                AnomalyKind::InvalidPartitionStatus {
+                    index: i,
+                    status: entry.status,
+                },
+                off,
+            );
         }
 
         check_chs_lba(i, entry, findings);

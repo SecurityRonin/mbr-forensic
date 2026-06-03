@@ -124,6 +124,12 @@ pub enum AnomalyKind {
         lba_start: u32,
         lba_count: u32,
     },
+    /// Entry status byte is neither 0x00 (inactive) nor 0x80 (bootable) — the
+    /// only spec-valid values; other values are a manual-edit / tooling artifact.
+    InvalidPartitionStatus { index: usize, status: u8 },
+    /// Two non-empty entries describe the identical extent (same start + count)
+    /// — a duplicate left by hand-editing or a faulty imaging tool.
+    DuplicatePartitionEntry { a: usize, b: usize },
     /// Two partitions have overlapping LBA ranges.
     OverlappingPartitions {
         a: usize,
@@ -272,6 +278,8 @@ impl AnomalyKind {
             | K::MultipleBootable { .. }
             | K::ResidualEntry { .. }
             | K::ChsLbaInconsistency { .. }
+            | K::InvalidPartitionStatus { .. }
+            | K::DuplicatePartitionEntry { .. }
             | K::ZeroDiskSignature
             | K::InterPartitionGap { .. }
             | K::SignatureMismatch { .. } => Severity::Medium,
@@ -298,6 +306,8 @@ impl AnomalyKind {
             K::ZeroDiskSignature => "MBR-DISKSIG-ZERO",
             K::KnownBootkit { .. } => "MBR-BOOT-MALWARE",
             K::ResidualEntry { .. } => "MBR-PART-RESIDUAL",
+            K::InvalidPartitionStatus { .. } => "MBR-PART-STATUS",
+            K::DuplicatePartitionEntry { .. } => "MBR-PART-DUPLICATE",
             K::OverlappingPartitions { .. } => "MBR-PART-OVERLAP",
             K::OutOfBounds { .. } => "MBR-PART-OOB",
             K::ChsLbaInconsistency { .. } => "MBR-PART-CHSLBA",
@@ -340,6 +350,12 @@ impl AnomalyKind {
                 "Windows MBR boot code present but NT disk signature (offset 440) is zero — \
                  consistent with a wiped or re-created boot record"
                     .to_string()
+            }
+            K::InvalidPartitionStatus { index, status } => format!(
+                "Entry {index}: invalid status byte {status:#04X} (expected 0x00 or 0x80)"
+            ),
+            K::DuplicatePartitionEntry { a, b } => {
+                format!("Entries {a} and {b} describe the identical extent — duplicate entry")
             }
             K::ResidualEntry {
                 index,

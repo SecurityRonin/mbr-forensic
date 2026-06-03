@@ -1222,6 +1222,11 @@ fn all_kinds() -> Vec<AnomalyKind> {
             bpb_hidden: 63,
             lba_start: 2048,
         },
+        AnomalyKind::InvalidPartitionStatus {
+            index: 0,
+            status: 0x55,
+        },
+        AnomalyKind::DuplicatePartitionEntry { a: 0, b: 1 },
     ]
 }
 
