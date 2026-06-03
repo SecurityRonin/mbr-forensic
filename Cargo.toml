@@ -3,11 +3,12 @@ name = "mbr-forensic"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
-license = "Apache-2.0"
+license = "MIT"
 description = "Forensic MBR parser — structure, anomaly detection, gap analysis, slack-space carving, and filesystem fingerprinting"
 repository = "https://github.com/SecurityRonin/mbr-forensic"
 keywords = ["forensics", "mbr", "partition", "disk-image"]
 categories = ["parser-implementations", "filesystem"]
+exclude = ["fuzz/", ".github/", ".pre-commit-config.yaml", "deny.toml", "renovate.json"]
 
 [dependencies]
 thiserror = "2"
