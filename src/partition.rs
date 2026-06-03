@@ -22,7 +22,11 @@ impl Chs {
         let head = b[0];
         let sector = b[1] & 0x3F;
         let cylinder = ((b[1] as u16 & 0xC0) << 2) | b[2] as u16;
-        Chs { cylinder, head, sector }
+        Chs {
+            cylinder,
+            head,
+            sector,
+        }
     }
 
     /// Convert to an approximate LBA (≤1023 cylinders, ≤255 heads, ≤63 sectors).
@@ -92,7 +96,9 @@ impl PartitionEntry {
     /// Inclusive last LBA of this partition, saturating on overflow.
     #[must_use]
     pub fn lba_end(&self) -> u32 {
-        self.lba_start.saturating_add(self.lba_count).saturating_sub(1)
+        self.lba_start
+            .saturating_add(self.lba_count)
+            .saturating_sub(1)
     }
 
     /// `true` if this entry describes an extended partition container.

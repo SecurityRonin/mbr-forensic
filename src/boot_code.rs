@@ -27,8 +27,8 @@ pub enum BootCodeId {
 // entry must match for it to be selected.
 
 const WINDOWS_VISTA_SIG: &[(usize, &[u8])] = &[
-    (0, &[0x33, 0xC0, 0x8E, 0xD0, 0xBC, 0x00, 0x7C]),  // xor ax,ax; mov ss,ax; mov sp,7C00h
-    (424, b"BOOTMGR"),                                    // Vista bootmgr string
+    (0, &[0x33, 0xC0, 0x8E, 0xD0, 0xBC, 0x00, 0x7C]), // xor ax,ax; mov ss,ax; mov sp,7C00h
+    (424, b"BOOTMGR"),                                // Vista bootmgr string
 ];
 
 const WINDOWS7_SIG: &[(usize, &[u8])] = &[
@@ -37,18 +37,16 @@ const WINDOWS7_SIG: &[(usize, &[u8])] = &[
 ];
 
 const GRUB2_SIG: &[(usize, &[u8])] = &[
-    (0, &[0xEB, 0x63, 0x90]),   // short jmp + nop (GRUB 2 format: JMP +0x65)
-    // GRUB 2's boot.img starts with EB 63; the value varies by version so we
-    // accept the common range.
+    (0, &[0xEB, 0x63, 0x90]), // short jmp + nop (GRUB 2 format: JMP +0x65)
+                              // GRUB 2's boot.img starts with EB 63; the value varies by version so we
+                              // accept the common range.
 ];
 
 const GRUB_LEGACY_SIG: &[(usize, &[u8])] = &[
-    (0, &[0xEB, 0x48, 0x90]),   // GRUB Legacy stage1 JMP
+    (0, &[0xEB, 0x48, 0x90]), // GRUB Legacy stage1 JMP
 ];
 
-const SYSLINUX_SIG: &[(usize, &[u8])] = &[
-    (3, b"SYSLINUX"),
-];
+const SYSLINUX_SIG: &[(usize, &[u8])] = &[(3, b"SYSLINUX")];
 
 /// Identify the boot code occupying `code[0..446]`.
 #[must_use]

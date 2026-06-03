@@ -141,13 +141,14 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
         extents.push((lba_start, lba_end));
 
         // Read first sector for filesystem fingerprinting.
-        let detected_fs: Option<DetectedFs> = if disk_size_bytes == 0 || byte_offset < disk_size_bytes {
-            read_partition_first_sector(reader, byte_offset)
-                .ok()
-                .map(|s| signature::detect(&s))
-        } else {
-            None
-        };
+        let detected_fs: Option<DetectedFs> =
+            if disk_size_bytes == 0 || byte_offset < disk_size_bytes {
+                read_partition_first_sector(reader, byte_offset)
+                    .ok()
+                    .map(|s| signature::detect(&s))
+            } else {
+                None
+            };
 
         // Signature mismatch.
         if let Some(detected) = detected_fs {
@@ -205,7 +206,11 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
     }
 
     // ── 7. EBR chain traversal ────────────────────────────────────────────────
-    let mut ebr_chain = EbrChain { entries: vec![], had_cycle: false, depth_exceeded: false };
+    let mut ebr_chain = EbrChain {
+        entries: vec![],
+        had_cycle: false,
+        depth_exceeded: false,
+    };
 
     for entry in &mbr.entries {
         if entry.is_extended() {
@@ -223,7 +228,9 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
                     if chain.depth_exceeded {
                         anomalies.push(Anomaly {
                             severity: Severity::High,
-                            kind: AnomalyKind::EbrExcessiveDepth { depth: chain.entries.len() },
+                            kind: AnomalyKind::EbrExcessiveDepth {
+                                depth: chain.entries.len(),
+                            },
                             offset: ext_start * SECTOR_BYTES,
                             note: format!(
                                 "EBR chain depth exceeded {} — possibly corrupt or adversarial",
@@ -241,7 +248,9 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
                             };
                             anomalies.push(Anomaly {
                                 severity: sev,
-                                kind: AnomalyKind::EbrSlackData { ebr_lba: ebr.ebr_lba },
+                                kind: AnomalyKind::EbrSlackData {
+                                    ebr_lba: ebr.ebr_lba,
+                                },
                                 offset: ebr.ebr_offset + 478,
                                 note: format!(
                                     "EBR at LBA {} has non-zero slack (entropy {:.2})",
@@ -251,7 +260,9 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
                         }
                         // Add logical partition extents.
                         let ls = ebr.logical_lba_start;
-                        let le = ls.saturating_add(ebr.logical.lba_count as u64).saturating_sub(1);
+                        let le = ls
+                            .saturating_add(ebr.logical.lba_count as u64)
+                            .saturating_sub(1);
                         extents.push((ls, le));
                         partition_summaries.push(PartitionSummary {
                             index: 4 + partition_summaries.len(),
@@ -281,16 +292,22 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
         for gap in &gaps_raw {
             let (kind, note) = match gap.kind {
                 GapKind::PrePartition => (
-                    AnomalyKind::PrePartitionSpace { sector_count: gap.lba_end - gap.lba_start + 1 },
+                    AnomalyKind::PrePartitionSpace {
+                        sector_count: gap.lba_end - gap.lba_start + 1,
+                    },
                     format!(
                         "Pre-partition space: LBA {}–{} ({} sectors, {} bytes)",
-                        gap.lba_start, gap.lba_end,
+                        gap.lba_start,
+                        gap.lba_end,
                         gap.lba_end - gap.lba_start + 1,
                         gap.byte_size
                     ),
                 ),
                 GapKind::Between => (
-                    AnomalyKind::InterPartitionGap { lba_start: gap.lba_start, lba_end: gap.lba_end },
+                    AnomalyKind::InterPartitionGap {
+                        lba_start: gap.lba_start,
+                        lba_end: gap.lba_end,
+                    },
                     format!(
                         "Gap between partitions: LBA {}–{} ({} bytes)",
                         gap.lba_start, gap.lba_end, gap.byte_size
@@ -303,7 +320,8 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
                     },
                     format!(
                         "Post-partition space: LBA {}–{} ({} sectors, {} bytes)",
-                        gap.lba_start, gap.lba_end,
+                        gap.lba_start,
+                        gap.lba_end,
                         gap.lba_end - gap.lba_start + 1,
                         gap.byte_size
                     ),
@@ -315,7 +333,12 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
                 GapKind::Between => Severity::Medium,
                 GapKind::PostPartition => Severity::Info,
             };
-            anomalies.push(Anomaly { severity: sev, kind, offset: gap.lba_start * SECTOR_BYTES, note });
+            anomalies.push(Anomaly {
+                severity: sev,
+                kind,
+                offset: gap.lba_start * SECTOR_BYTES,
+                note,
+            });
         }
         gaps_raw
     } else {
@@ -353,8 +376,14 @@ fn is_mismatch(declared: TypeCode, detected: crate::signature::DetectedFs) -> bo
         return false;
     }
     match (declared.family(), detected) {
-        (Pf::Ntfs, Df::Ext | Df::Fat | Df::Luks | Df::LinuxSwap | Df::LinuxLvm | Df::Xfs | Df::Apfs) => true,
-        (Pf::Fat16 | Pf::Fat32 | Pf::Fat12, Df::Ntfs | Df::Ext | Df::Luks | Df::LinuxSwap | Df::LinuxLvm | Df::Xfs | Df::Apfs) => true,
+        (
+            Pf::Ntfs,
+            Df::Ext | Df::Fat | Df::Luks | Df::LinuxSwap | Df::LinuxLvm | Df::Xfs | Df::Apfs,
+        ) => true,
+        (
+            Pf::Fat16 | Pf::Fat32 | Pf::Fat12,
+            Df::Ntfs | Df::Ext | Df::Luks | Df::LinuxSwap | Df::LinuxLvm | Df::Xfs | Df::Apfs,
+        ) => true,
         (Pf::Linux, Df::Ntfs | Df::Fat | Df::Luks | Df::Apfs) => true,
         (Pf::LinuxSwap, Df::Ntfs | Df::Fat | Df::Ext | Df::Apfs) => true,
         (Pf::LinuxLvm, Df::Ntfs | Df::Fat | Df::Ext | Df::Apfs) => true,

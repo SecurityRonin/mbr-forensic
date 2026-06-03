@@ -78,10 +78,18 @@ pub fn walk_ebr_chain<R: Read + Seek>(
             break;
         }
 
-        let ebr_byte_offset = next_ebr_lba * sector_size;
+        // EBR must not point before the extended partition start.
+        if next_ebr_lba < ext_start_lba {
+            break;
+        }
+        let Some(ebr_byte_offset) = next_ebr_lba.checked_mul(sector_size) else {
+            break; // byte offset overflow — corrupt image
+        };
         reader.seek(SeekFrom::Start(ebr_byte_offset))?;
         let mut sector = [0u8; 512];
-        reader.read_exact(&mut sector)?;
+        if reader.read_exact(&mut sector).is_err() {
+            break; // truncated disk image — terminate gracefully
+        }
 
         // Validate boot signature.
         if sector[510] != 0x55 || sector[511] != 0xAA {
@@ -96,7 +104,8 @@ pub fn walk_ebr_chain<R: Read + Seek>(
         let next_entry = PartitionEntry::from_bytes(next_raw);
 
         // Logical partition LBA is relative to this EBR sector.
-        let logical_lba_start = next_ebr_lba + logical.lba_start as u64;
+        // Use saturating_add: malicious logical.lba_start cannot cause overflow panic.
+        let logical_lba_start = next_ebr_lba.saturating_add(logical.lba_start as u64);
 
         let has_slack = slack_bytes.iter().any(|&b| b != 0);
 
@@ -110,10 +119,14 @@ pub fn walk_ebr_chain<R: Read + Seek>(
         });
 
         // Next EBR LBA is relative to the extended partition start.
+        // checked_add: overflow → corrupt/adversarial chain, terminate safely.
         if next_entry.lba_start == 0 {
             break;
         }
-        next_ebr_lba = ext_start_lba + next_entry.lba_start as u64;
+        let Some(next_lba) = ext_start_lba.checked_add(next_entry.lba_start as u64) else {
+            break; // arithmetic overflow in EBR chain — corrupt or adversarial
+        };
+        next_ebr_lba = next_lba;
     }
 
     Ok(EbrChain {
