@@ -614,8 +614,17 @@ fn gap_anomaly_kind(gap: &Gap) -> AnomalyKind {
     }
 }
 
-/// Read and fingerprint a partition's first sector. Returns `None` when the
-/// partition starts beyond the known disk size, or the read fails.
+/// Bytes read from a partition's start for filesystem fingerprinting. Sized to
+/// reach the Btrfs superblock magic at 64 KiB (the deepest magic we recognise);
+/// shallower magics (NTFS@3, ext@1080, swap@4086) fall within it.
+const FS_FINGERPRINT_BYTES: usize = 65536 + 8;
+
+/// Read and fingerprint a partition's start. Returns `None` when the partition
+/// starts beyond the known disk size, or the read fails.
+///
+/// Reads up to [`FS_FINGERPRINT_BYTES`], tolerating a short read at end-of-disk
+/// — fingerprints are offset-based, so a partial window still matches every
+/// magic that fits within it.
 fn detect_partition_fs<R: Read + Seek>(
     reader: &mut R,
     byte_offset: u64,
@@ -624,13 +633,35 @@ fn detect_partition_fs<R: Read + Seek>(
     if disk_size_bytes != 0 && byte_offset >= disk_size_bytes {
         return None;
     }
-    match read_first_sector(reader, byte_offset) {
-        Ok(sector) => Some(signature::detect(&sector)),
+    match read_fingerprint(reader, byte_offset, FS_FINGERPRINT_BYTES) {
+        Ok(buf) => Some(signature::detect(&buf)),
         Err(e) => {
             diag::partition_read_failed(byte_offset, &e);
             None
         }
     }
+}
+
+/// Read up to `max` bytes from `byte_offset`, returning however many were
+/// available (a short read at EOF is not an error).
+fn read_fingerprint<R: Read + Seek>(
+    reader: &mut R,
+    byte_offset: u64,
+    max: usize,
+) -> Result<Vec<u8>, Error> {
+    reader.seek(SeekFrom::Start(byte_offset))?;
+    let mut buf = vec![0u8; max];
+    let mut filled = 0;
+    while filled < max {
+        match reader.read(&mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    buf.truncate(filled);
+    Ok(buf)
 }
 
 /// Read a single 512-byte sector at `byte_offset`.

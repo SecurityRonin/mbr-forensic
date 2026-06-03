@@ -103,6 +103,12 @@ pub fn detect(sector: &[u8]) -> DetectedFs {
         return DetectedFs::LinuxLvm;
     }
 
+    // Btrfs: superblock magic "_BHRfS_M" at offset 64 KiB. Only detectable when
+    // the caller supplies a fingerprint window large enough to reach it.
+    if sector.len() >= 65536 + 8 && &sector[65536..65536 + 8] == b"_BHRfS_M" {
+        return DetectedFs::Btrfs;
+    }
+
     DetectedFs::Unknown
 }
 
@@ -124,13 +130,27 @@ pub fn type_conflicts(declared: crate::partition::PartitionFamily, detected: Det
         (declared, detected),
         (
             Pf::Ntfs,
-            Df::Ext | Df::Fat | Df::Luks | Df::LinuxSwap | Df::LinuxLvm | Df::Xfs | Df::Apfs
+            Df::Ext
+                | Df::Fat
+                | Df::Luks
+                | Df::LinuxSwap
+                | Df::LinuxLvm
+                | Df::Xfs
+                | Df::Btrfs
+                | Df::Apfs
         ) | (
             Pf::Fat16 | Pf::Fat32 | Pf::Fat12,
-            Df::Ntfs | Df::Ext | Df::Luks | Df::LinuxSwap | Df::LinuxLvm | Df::Xfs | Df::Apfs
+            Df::Ntfs
+                | Df::Ext
+                | Df::Luks
+                | Df::LinuxSwap
+                | Df::LinuxLvm
+                | Df::Xfs
+                | Df::Btrfs
+                | Df::Apfs
         ) | (Pf::Linux, Df::Ntfs | Df::Fat | Df::Luks | Df::Apfs)
-            | (Pf::LinuxSwap, Df::Ntfs | Df::Fat | Df::Ext | Df::Apfs)
-            | (Pf::LinuxLvm, Df::Ntfs | Df::Fat | Df::Ext | Df::Apfs)
+            | (Pf::LinuxSwap, Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs)
+            | (Pf::LinuxLvm, Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs)
     )
 }
 
