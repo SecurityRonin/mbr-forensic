@@ -113,6 +113,8 @@ pub enum AnomalyKind {
     /// A Windows MBR (recognised bootmgr stub) whose NT disk signature at
     /// offset 440 is zero — consistent with a wiped or re-created boot record.
     ZeroDiskSignature,
+    /// The boot code contains a documented boot-sector-malware marker.
+    KnownBootkit { name: &'static str },
 
     // ── Partition entries ────────────────────────────────────────────────────
     /// Entry has type code `0x00` but non-zero LBA fields — residual deleted entry.
@@ -208,7 +210,9 @@ impl AnomalyKind {
         use AnomalyKind as K;
         match self {
             // Critical — definitive structural compromise.
-            K::OverlappingPartitions { .. } | K::EbrCycle => Severity::Critical,
+            K::OverlappingPartitions { .. } | K::EbrCycle | K::KnownBootkit { .. } => {
+                Severity::Critical
+            }
 
             // High — strong tampering / data-hiding / anti-forensic signal.
             K::OutOfBounds { .. }
@@ -266,6 +270,7 @@ impl AnomalyKind {
             K::MultipleBootable { .. } => "MBR-BOOT-MULTI",
             K::NoBootablePartition => "MBR-BOOT-NONE",
             K::ZeroDiskSignature => "MBR-DISKSIG-ZERO",
+            K::KnownBootkit { .. } => "MBR-BOOT-MALWARE",
             K::ResidualEntry { .. } => "MBR-PART-RESIDUAL",
             K::OverlappingPartitions { .. } => "MBR-PART-OVERLAP",
             K::OutOfBounds { .. } => "MBR-PART-OOB",
@@ -383,6 +388,9 @@ impl AnomalyKind {
                 declared.family(),
                 declared.name(),
             ),
+            K::KnownBootkit { name } => {
+                format!("Boot code contains a documented {name} boot-sector-malware marker")
+            }
             K::WipedBootCode => "Boot code is all zeros — likely wiped or overwritten".to_string(),
             K::ErasedBootCode => {
                 "Boot code is all 0xFF — factory-erased or deliberate wipe".to_string()

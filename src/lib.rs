@@ -25,6 +25,7 @@
 //! ```
 
 pub mod boot_code;
+pub mod bootkit;
 pub mod disk_signature;
 pub mod ebr;
 pub mod entropy;

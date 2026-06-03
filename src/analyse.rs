@@ -167,6 +167,12 @@ fn check_boot_code(mbr: &MbrSector, id: BootCodeId, findings: &mut Findings) {
             findings.record(AnomalyKind::HighEntropySlack { offset: 0, entropy }, 0);
         }
     }
+
+    // Documented boot-sector-malware markers — scanned regardless of loader
+    // identity, since a marker can coexist with otherwise-valid-looking code.
+    for name in crate::bootkit::scan(&mbr.boot_code) {
+        findings.record(AnomalyKind::KnownBootkit { name }, 0);
+    }
 }
 
 /// Flag a Windows MBR whose NT disk signature (offset 440) is zero.
