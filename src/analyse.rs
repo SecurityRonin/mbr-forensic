@@ -28,6 +28,8 @@ const PARTITION_TABLE_OFFSET: u64 = 446;
 const ENTRY_SIZE: u64 = 16;
 /// Byte offset of the reserved field (bytes 444–445).
 const RESERVED_OFFSET: u64 = 444;
+/// Byte offset of the NT disk signature (bytes 440–443, little-endian u32).
+const DISK_SERIAL_OFFSET: u64 = 440;
 /// Byte offset of the EBR slack region (entries 2–3) within an EBR sector.
 const EBR_SLACK_OFFSET: u64 = 478;
 /// First partition index assigned to logical partitions from the EBR chain.
@@ -103,6 +105,7 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
 
     let boot_code_id = boot_code::identify(&mbr.boot_code);
     check_boot_code(&mbr, boot_code_id, &mut findings);
+    check_disk_signature(&mbr, boot_code_id, &mut findings);
     check_reserved(&mbr, &mut findings);
     check_bootable_flags(&mbr, &mut findings);
 
@@ -162,6 +165,20 @@ fn check_boot_code(mbr: &MbrSector, id: BootCodeId, findings: &mut Findings) {
         if entropy > entropy::HIGH_ENTROPY_THRESHOLD {
             findings.record(AnomalyKind::HighEntropySlack { offset: 0, entropy }, 0);
         }
+    }
+}
+
+/// Flag a Windows MBR whose NT disk signature (offset 440) is zero.
+///
+/// Windows always writes a non-zero signature; its absence under a recognised
+/// bootmgr stub is consistent with a wiped or re-created boot record. Non-Windows
+/// MBRs routinely leave it zero, so the check is gated on the boot-code identity
+/// to avoid false positives. Cross-disk collision detection (the cloning signal)
+/// lives in [`crate::disk_signature`].
+fn check_disk_signature(mbr: &MbrSector, id: BootCodeId, findings: &mut Findings) {
+    let is_windows = matches!(id, BootCodeId::WindowsVista | BootCodeId::Windows7Plus);
+    if is_windows && mbr.disk_serial == 0 {
+        findings.record(AnomalyKind::ZeroDiskSignature, DISK_SERIAL_OFFSET);
     }
 }
 

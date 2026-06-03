@@ -25,6 +25,7 @@
 //! ```
 
 pub mod boot_code;
+pub mod disk_signature;
 pub mod ebr;
 pub mod entropy;
 pub mod findings;
@@ -38,6 +39,7 @@ mod diag;
 
 pub use analyse::analyse;
 pub use boot_code::BootCodeId;
+pub use disk_signature::{find_signature_collisions, SignatureCollision};
 pub use ebr::{EbrChain, EbrEntry};
 pub use findings::{Anomaly, AnomalyKind, MbrAnalysis, PartitionSummary, Severity};
 pub use gap::Gap;

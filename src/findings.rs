@@ -110,6 +110,9 @@ pub enum AnomalyKind {
     MultipleBootable { count: usize },
     /// Active partitions exist but none is marked bootable (informational).
     NoBootablePartition,
+    /// A Windows MBR (recognised bootmgr stub) whose NT disk signature at
+    /// offset 440 is zero — consistent with a wiped or re-created boot record.
+    ZeroDiskSignature,
 
     // ── Partition entries ────────────────────────────────────────────────────
     /// Entry has type code `0x00` but non-zero LBA fields — residual deleted entry.
@@ -219,6 +222,7 @@ impl AnomalyKind {
             | K::MultipleBootable { .. }
             | K::ResidualEntry { .. }
             | K::ChsLbaInconsistency { .. }
+            | K::ZeroDiskSignature
             | K::InterPartitionGap { .. }
             | K::SignatureMismatch { .. } => Severity::Medium,
 
@@ -239,6 +243,7 @@ impl AnomalyKind {
             K::NonZeroReserved { .. } => "MBR-RESERVED-NONZERO",
             K::MultipleBootable { .. } => "MBR-BOOT-MULTI",
             K::NoBootablePartition => "MBR-BOOT-NONE",
+            K::ZeroDiskSignature => "MBR-DISKSIG-ZERO",
             K::ResidualEntry { .. } => "MBR-PART-RESIDUAL",
             K::OverlappingPartitions { .. } => "MBR-PART-OVERLAP",
             K::OutOfBounds { .. } => "MBR-PART-OOB",
@@ -270,6 +275,11 @@ impl AnomalyKind {
                 format!("{count} partition entries have the bootable flag set")
             }
             K::NoBootablePartition => "No partition is marked bootable".to_string(),
+            K::ZeroDiskSignature => {
+                "Windows MBR boot code present but NT disk signature (offset 440) is zero — \
+                 consistent with a wiped or re-created boot record"
+                    .to_string()
+            }
             K::ResidualEntry {
                 index,
                 lba_start,
