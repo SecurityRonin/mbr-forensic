@@ -153,6 +153,7 @@ checksum = "113b30b4cd05f7c06868fdb2854f66a7b9fece9a48425351cd532e810d74024f"
 name = "mbr-forensic"
 version = "0.1.0"
 dependencies = [
+ "forensicnomicon",
  "gpt-forensic",
  "serde",
  "serde_json",

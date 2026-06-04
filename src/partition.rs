@@ -193,53 +193,12 @@ pub struct TypeCode(pub u8);
 
 impl TypeCode {
     /// Human-readable short name for the partition type.
+    ///
+    /// Sourced from the `forensicnomicon` knowledge base (Brouwer's partition
+    /// identifier list / Wikipedia); unrecognised codes return `"Unknown"`.
     #[must_use]
     pub fn name(self) -> &'static str {
-        match self.0 {
-            0x00 => "Empty",
-            0x01 => "FAT12",
-            0x04 => "FAT16 <32 MB",
-            0x05 => "Extended (CHS)",
-            0x06 => "FAT16",
-            0x07 => "NTFS / exFAT / IFS",
-            0x08 => "FAT32 (EISA / AIX)",
-            0x0B => "FAT32 (CHS)",
-            0x0C => "FAT32 (LBA)",
-            0x0E => "FAT16 (LBA)",
-            0x0F => "Extended (LBA)",
-            0x11 => "Hidden FAT12",
-            0x14 => "Hidden FAT16 <32 MB",
-            0x16 => "Hidden FAT16",
-            0x17 => "Hidden NTFS / IFS",
-            0x1B => "Hidden FAT32 (CHS)",
-            0x1C => "Hidden FAT32 (LBA)",
-            0x1E => "Hidden FAT16 (LBA)",
-            0x27 => "Windows Recovery / Hidden NTFS",
-            0x42 => "Windows LDM / Dynamic Disk",
-            0x82 => "Linux Swap / Solaris",
-            0x83 => "Linux",
-            0x84 => "Hibernate (Windows)",
-            0x85 => "Linux Extended",
-            0x86 => "Linux LVM (old)",
-            0x87 => "NTFS Volume Set",
-            0x8E => "Linux LVM",
-            0x9F => "BSD/OS",
-            0xA5 => "FreeBSD",
-            0xA6 => "OpenBSD",
-            0xA9 => "NetBSD",
-            0xAB => "macOS Boot",
-            0xAF => "macOS HFS+",
-            0xBE => "Solaris Boot",
-            0xBF => "Solaris",
-            0xEB => "BeOS / Haiku",
-            0xEE => "GPT Protective MBR",
-            0xEF => "EFI System Partition (FAT)",
-            0xFB => "VMware VMFS",
-            0xFC => "VMware Swap",
-            0xFD => "Linux RAID",
-            0xFE => "Linux LAF / IBM IML",
-            _ => "Unknown",
-        }
+        forensicnomicon::partition_types::type_name(self.0).unwrap_or("Unknown")
     }
 
     /// High-level partition family classification.
