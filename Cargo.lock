@@ -150,6 +150,7 @@ version = "0.1.0"
 dependencies = [
  "gpt-forensic",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tracing",
