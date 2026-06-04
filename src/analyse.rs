@@ -758,7 +758,7 @@ fn gap_anomaly_kind(gap: &Gap) -> AnomalyKind {
 /// Bytes read from a partition's start for filesystem fingerprinting. Sized to
 /// reach the Btrfs superblock magic at 64 KiB (the deepest magic we recognise);
 /// shallower magics (NTFS@3, ext@1080, swap@4086) fall within it.
-const FS_FINGERPRINT_BYTES: usize = 65536 + 8;
+const FS_FINGERPRINT_BYTES: usize = 65600 + 8;
 
 /// Read and fingerprint a partition's start. Returns `None` when the partition
 /// starts beyond the known disk size, or the read fails.

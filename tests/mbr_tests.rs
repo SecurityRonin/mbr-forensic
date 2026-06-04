@@ -298,8 +298,10 @@ fn detect_fat_msdos_oem() {
 
 #[test]
 fn detect_apfs_magic() {
+    // APFS nx_magic "NXSB" sits at offset 32 (after the 32-byte obj_phys header),
+    // per the Apple File System Reference and util-linux libblkid.
     let mut s = [0u8; 512];
-    s[0..4].copy_from_slice(b"NXSB");
+    s[32..36].copy_from_slice(b"NXSB");
     assert_eq!(signature::detect(&s), DetectedFs::Apfs);
 }
 
@@ -769,9 +771,11 @@ fn detect_linux_swap_pagespace() {
 
 #[test]
 fn detect_lvm2_label() {
-    let mut s = vec![0u8; 512];
-    s[8..16].copy_from_slice(b"LABELONE");
+    // The LVM2 PV label is in sector 0 OR sector 1; the default is sector 1
+    // (offset 512) — the case mbr-forensic previously missed. (util-linux libblkid)
+    let mut s = vec![0u8; 1024];
     s[0] = 1; // make it non-zero so AllZeros check passes
+    s[512..520].copy_from_slice(b"LABELONE");
     assert_eq!(signature::detect(&s), DetectedFs::LinuxLvm);
 }
 

@@ -21,9 +21,10 @@ fn entry(type_code: u8, lba_start: u32, lba_count: u32) -> [u8; 16] {
 
 #[test]
 fn detect_recognises_btrfs_at_64k() {
-    // Unit-level: detect() must understand the Btrfs magic when given enough bytes.
-    let mut buf = vec![0u8; 65536 + 8];
-    buf[65536..65536 + 8].copy_from_slice(b"_BHRfS_M");
+    // The Btrfs magic is at 65600 (0x10040 = superblock @64 KiB + 0x40), per the
+    // btrfs on-disk format and util-linux libblkid (.kboff=64, .sboff=0x40).
+    let mut buf = vec![0u8; 65600 + 8];
+    buf[65600..65600 + 8].copy_from_slice(b"_BHRfS_M");
     assert_eq!(signature::detect(&buf), DetectedFs::Btrfs);
 }
 
@@ -55,7 +56,7 @@ fn analyse_detects_btrfs_under_fat_declared_partition() {
     disk[511] = 0xAA;
     disk[446..462].copy_from_slice(&entry(0x0C, 2048, 2000)); // FAT32 (LBA)
     let base = 2048 * 512;
-    disk[base + 65536..base + 65536 + 8].copy_from_slice(b"_BHRfS_M");
+    disk[base + 65600..base + 65600 + 8].copy_from_slice(b"_BHRfS_M");
     let analysis = analyse(&mut Cursor::new(disk), SECTORS * 512).unwrap();
     assert!(
         analysis.anomalies.iter().any(|a| matches!(

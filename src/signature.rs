@@ -65,26 +65,14 @@ pub fn detect(sector: &[u8]) -> DetectedFs {
         return fs;
     }
 
-    // APFS container superblock magic at the start of the window.
-    if sector.len() >= 4 && &sector[0..4] == b"NXSB" {
-        return DetectedFs::Apfs;
-    }
     // FAT: OEM ID at bytes 3–10, matched against well-known formatter strings.
+    // (A heuristic; the spec-correct BS_FilSysType FAT signal is in the KB.)
     if sector.len() >= 11 && FAT_OEM_IDS.iter().any(|id| *id == &sector[3..11]) {
         return DetectedFs::Fat;
     }
     // Older AIX/Linux paging signature `PAGESPACE1` (SWAPSPACE2 is in the KB).
     if sector.len() >= 4096 && &sector[4086..4096] == b"PAGESPACE1" {
         return DetectedFs::LinuxSwap;
-    }
-    // Linux LVM2: "LABELONE" within the first 512 bytes.
-    if find_substr(sector, b"LABELONE").is_some_and(|pos| pos < 512) {
-        return DetectedFs::LinuxLvm;
-    }
-    // Btrfs: superblock magic "_BHRfS_M" at offset 64 KiB. Only detectable when
-    // the caller supplies a fingerprint window large enough to reach it.
-    if sector.len() >= 65536 + 8 && &sector[65536..65536 + 8] == b"_BHRfS_M" {
-        return DetectedFs::Btrfs;
     }
 
     DetectedFs::Unknown
@@ -99,6 +87,9 @@ fn map_fs_name(name: &str) -> Option<DetectedFs> {
         "exFAT" => DetectedFs::ExFat,
         "XFS" => DetectedFs::Xfs,
         "LUKS" => DetectedFs::Luks,
+        "APFS" => DetectedFs::Apfs,
+        "Btrfs" => DetectedFs::Btrfs,
+        "LVM2" => DetectedFs::LinuxLvm,
         "Linux swap" => DetectedFs::LinuxSwap,
         "FAT32" | "FAT16" | "FAT12" => DetectedFs::Fat,
         _ => return None,
@@ -145,8 +136,4 @@ pub fn type_conflicts(declared: crate::partition::PartitionFamily, detected: Det
             | (Pf::LinuxSwap, Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs)
             | (Pf::LinuxLvm, Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs)
     )
-}
-
-fn find_substr(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|w| w == needle)
 }
