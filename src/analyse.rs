@@ -39,8 +39,8 @@ const EBR_INDEX_BASE: usize = 4;
 
 /// Convert an LBA to its byte offset, saturating instead of overflowing.
 #[inline]
-fn lba_to_byte(lba: u64) -> u64 {
-    lba.saturating_mul(SECTOR_BYTES)
+fn lba_to_byte(lba: u64, sector_size: u64) -> u64 {
+    lba.saturating_mul(sector_size)
 }
 
 /// Byte offset of primary partition entry `index` within the MBR sector.
@@ -52,9 +52,9 @@ fn entry_offset(index: usize) -> u64 {
 /// Inclusive last LBA of a disk of `disk_size_bytes`, or [`u64::MAX`] (i.e. "no
 /// bound") when the size is unknown (`0`).
 #[inline]
-fn disk_last_lba(disk_size_bytes: u64) -> u64 {
+fn disk_last_lba(disk_size_bytes: u64, sector_size: u64) -> u64 {
     if disk_size_bytes > 0 {
-        (disk_size_bytes / SECTOR_BYTES).saturating_sub(1)
+        (disk_size_bytes / sector_size).saturating_sub(1)
     } else {
         u64::MAX
     }
@@ -92,6 +92,24 @@ struct PrimaryScan {
     summaries: Vec<PartitionSummary>,
 }
 
+/// Options controlling [`analyse_with_options`].
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct AnalyseOptions {
+    /// Logical sector size in bytes. Defaults to 512; set to 4096 for a 4Kn
+    /// (Advanced Format) disk so partition-content offsets, gap sizes, and
+    /// out-of-bounds bounds are computed against the correct geometry.
+    pub sector_size: u64,
+}
+
+impl Default for AnalyseOptions {
+    fn default() -> Self {
+        Self {
+            sector_size: SECTOR_BYTES,
+        }
+    }
+}
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /// Perform a full forensic analysis of an MBR-partitioned disk image.
@@ -105,13 +123,33 @@ struct PrimaryScan {
 /// when the MBR sector is invalid.
 #[cfg_attr(feature = "trace", tracing::instrument(level = "debug", skip(reader)))]
 pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<MbrAnalysis, Error> {
+    analyse_with_options(reader, disk_size_bytes, AnalyseOptions::default())
+}
+
+/// Like [`analyse`], but with explicit [`AnalyseOptions`] — e.g. to force a 4Kn
+/// (4096-byte) logical sector size for an Advanced Format disk.
+///
+/// The MBR boot record is always parsed from byte 0 (it is a 512-byte structure
+/// regardless of sector size); only partition-content offsets, gap sizes, and
+/// out-of-bounds bounds scale with [`AnalyseOptions::sector_size`].
+///
+/// # Errors
+///
+/// Same as [`analyse`].
+#[cfg_attr(feature = "trace", tracing::instrument(level = "debug", skip(reader)))]
+pub fn analyse_with_options<R: Read + Seek>(
+    reader: &mut R,
+    disk_size_bytes: u64,
+    opts: AnalyseOptions,
+) -> Result<MbrAnalysis, Error> {
+    let sector_size = opts.sector_size;
     let mbr = read_mbr(reader)?;
     let mut findings = Findings::default();
 
     let boot_code_id = boot_code::identify(&mbr.boot_code);
     // Read LBA 1 once: it decides both the GPT cross-validation and whether an
     // all-zero boot code is benign (genuine GPT disk) or suspicious (legacy).
-    let gpt_header = gpt_header_present(reader);
+    let gpt_header = gpt_header_present(reader, sector_size);
     let on_gpt_disk = gpt_header && is_pure_protective_mbr(&mbr);
 
     check_boot_code(&mbr, boot_code_id, on_gpt_disk, &mut findings);
@@ -120,18 +158,38 @@ pub fn analyse<R: Read + Seek>(reader: &mut R, disk_size_bytes: u64) -> Result<M
     check_bootable_flags(&mbr, &mut findings);
     check_duplicate_entries(&mbr, &mut findings);
 
-    let last_lba = disk_last_lba(disk_size_bytes);
-    check_gpt(&mbr, last_lba, gpt_header, &mut findings);
-    let mut scan = scan_primary_entries(reader, &mbr, disk_size_bytes, last_lba, &mut findings);
+    let last_lba = disk_last_lba(disk_size_bytes, sector_size);
+    check_gpt(&mbr, last_lba, gpt_header, sector_size, &mut findings);
+    let mut scan = scan_primary_entries(
+        reader,
+        &mbr,
+        disk_size_bytes,
+        last_lba,
+        sector_size,
+        &mut findings,
+    );
 
-    let ebr_chain = walk_extended(reader, &mbr, &mut scan, disk_size_bytes, &mut findings);
+    let ebr_chain = walk_extended(
+        reader,
+        &mbr,
+        &mut scan,
+        disk_size_bytes,
+        sector_size,
+        &mut findings,
+    );
     // Overlap detection runs on data partitions (non-extended primaries +
     // logicals) AFTER the EBR walk, so logical-partition overlaps are caught.
     // Extended containers are excluded — their logicals living inside them is
     // expected, not an overlap.
     check_overlaps(&scan.overlap_extents, &mut findings);
-    let gaps = check_gaps(&scan.extents, disk_size_bytes, last_lba, &mut findings);
-    check_gap_content(reader, &gaps, &mut findings);
+    let gaps = check_gaps(
+        &scan.extents,
+        disk_size_bytes,
+        last_lba,
+        sector_size,
+        &mut findings,
+    );
+    check_gap_content(reader, &gaps, sector_size, &mut findings);
 
     // When the disk turns out to be GPT, parse the real GUID Partition Table
     // automatically via the sibling gpt-forensic crate.
@@ -180,11 +238,11 @@ fn first_partition_lba(mbr: &MbrSector) -> Option<u64> {
 
 /// `true` when an "EFI PART" GPT header is present at LBA 1. A read failure
 /// (e.g. a sub-1024-byte image) is treated as "absent".
-fn gpt_header_present<R: Read + Seek>(reader: &mut R) -> bool {
-    match read_first_sector(reader, SECTOR_BYTES) {
+fn gpt_header_present<R: Read + Seek>(reader: &mut R, sector_size: u64) -> bool {
+    match read_first_sector(reader, sector_size) {
         Ok(lba1) => crate::gpt::has_gpt_header(&lba1),
         Err(e) => {
-            diag::partition_read_failed(SECTOR_BYTES, &e);
+            diag::partition_read_failed(sector_size, &e);
             false
         }
     }
@@ -270,7 +328,13 @@ const PROTECTIVE_UNDERSIZE_TOLERANCE: u64 = 2048;
 /// once by the caller). Reconciles it with the presence/shape of a protective
 /// 0xEE entry, surfacing hybrid MBRs, undersized protective entries, hidden
 /// GPTs, and spoofed protective MBRs — all data-hiding or tampering vectors.
-fn check_gpt(mbr: &MbrSector, last_lba: u64, header_present: bool, findings: &mut Findings) {
+fn check_gpt(
+    mbr: &MbrSector,
+    last_lba: u64,
+    header_present: bool,
+    sector_size: u64,
+    findings: &mut Findings,
+) {
     let protective_idx = mbr
         .entries
         .iter()
@@ -279,7 +343,7 @@ fn check_gpt(mbr: &MbrSector, last_lba: u64, header_present: bool, findings: &mu
     let Some(idx) = protective_idx else {
         // No protective entry. A GPT header with no 0xEE advertising it is hidden.
         if header_present {
-            findings.record(AnomalyKind::HiddenGpt, lba_to_byte(1));
+            findings.record(AnomalyKind::HiddenGpt, lba_to_byte(1, sector_size));
         }
         return;
     };
@@ -381,6 +445,7 @@ fn scan_primary_entries<R: Read + Seek>(
     mbr: &MbrSector,
     disk_size_bytes: u64,
     last_lba: u64,
+    sector_size: u64,
     findings: &mut Findings,
 ) -> PrimaryScan {
     let mut extents = Vec::new();
@@ -422,8 +487,8 @@ fn scan_primary_entries<R: Read + Seek>(
 
         let lba_start = entry.lba_start as u64;
         let lba_end = entry.lba_end() as u64;
-        let byte_offset = lba_to_byte(lba_start);
-        let byte_size = lba_to_byte(entry.lba_count as u64);
+        let byte_offset = lba_to_byte(lba_start, sector_size);
+        let byte_size = lba_to_byte(entry.lba_count as u64, sector_size);
 
         if disk_size_bytes > 0 && lba_end > last_lba {
             findings.record(
@@ -596,6 +661,7 @@ fn walk_extended<R: Read + Seek>(
     mbr: &MbrSector,
     scan: &mut PrimaryScan,
     disk_size_bytes: u64,
+    sector_size: u64,
     findings: &mut Findings,
 ) -> EbrChain {
     let Some(ext) = mbr.entries.iter().find(|e| e.is_extended()) else {
@@ -603,7 +669,7 @@ fn walk_extended<R: Read + Seek>(
     };
     let ext_start = ext.lba_start as u64;
 
-    let chain = match walk_ebr_chain(reader, ext_start, SECTOR_BYTES) {
+    let chain = match walk_ebr_chain(reader, ext_start, sector_size) {
         Ok(chain) => chain,
         Err(e) => {
             diag::ebr_walk_failed(ext_start, &e);
@@ -611,7 +677,7 @@ fn walk_extended<R: Read + Seek>(
         }
     };
 
-    let ext_offset = lba_to_byte(ext_start);
+    let ext_offset = lba_to_byte(ext_start, sector_size);
     if chain.had_cycle {
         findings.record(AnomalyKind::EbrCycle, ext_offset);
     }
@@ -640,7 +706,7 @@ fn walk_extended<R: Read + Seek>(
         let lba_end = lba_start
             .saturating_add(ebr.logical.lba_count as u64)
             .saturating_sub(1);
-        let byte_offset = lba_to_byte(lba_start);
+        let byte_offset = lba_to_byte(lba_start, sector_size);
         let index = EBR_INDEX_BASE + scan.summaries.len();
 
         scan.extents.push((lba_start, lba_end));
@@ -670,7 +736,7 @@ fn walk_extended<R: Read + Seek>(
             lba_start,
             lba_end,
             byte_offset,
-            byte_size: lba_to_byte(ebr.logical.lba_count as u64),
+            byte_size: lba_to_byte(ebr.logical.lba_count as u64, sector_size),
             declared_type: ebr.logical.type_code,
             detected_fs,
         });
@@ -685,6 +751,7 @@ fn check_gaps(
     extents: &[(u64, u64)],
     disk_size_bytes: u64,
     last_lba: u64,
+    sector_size: u64,
     findings: &mut Findings,
 ) -> Vec<Gap> {
     if disk_size_bytes == 0 {
@@ -694,9 +761,12 @@ fn check_gaps(
     sorted.sort_by_key(|&(start, _)| start);
     sorted.dedup();
 
-    let gaps = compute_gaps(&sorted, 1, last_lba, SECTOR_BYTES);
+    let gaps = compute_gaps(&sorted, 1, last_lba, sector_size);
     for gap in &gaps {
-        findings.record(gap_anomaly_kind(gap), lba_to_byte(gap.lba_start));
+        findings.record(
+            gap_anomaly_kind(gap),
+            lba_to_byte(gap.lba_start, sector_size),
+        );
     }
     gaps
 }
@@ -710,9 +780,14 @@ const GAP_SAMPLE_BYTES: usize = 4096;
 /// All-zero gaps — ordinary unallocated space — are never flagged. Read
 /// failures (truncated images) are skipped silently; gap *existence* is already
 /// reported by [`check_gaps`].
-fn check_gap_content<R: Read + Seek>(reader: &mut R, gaps: &[Gap], findings: &mut Findings) {
+fn check_gap_content<R: Read + Seek>(
+    reader: &mut R,
+    gaps: &[Gap],
+    sector_size: u64,
+    findings: &mut Findings,
+) {
     for gap in gaps {
-        let byte_offset = lba_to_byte(gap.lba_start);
+        let byte_offset = lba_to_byte(gap.lba_start, sector_size);
         let sample_len = gap.byte_size.min(GAP_SAMPLE_BYTES as u64) as usize;
         if sample_len == 0 {
             continue;

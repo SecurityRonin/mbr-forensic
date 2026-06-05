@@ -52,5 +52,8 @@ fn default_analyse_assumes_512() {
     )
     .unwrap();
     let plain = analyse(&mut Cursor::new(disk), size).unwrap();
-    assert_eq!(viaopts.partitions[0].detected_fs, plain.partitions[0].detected_fs);
+    assert_eq!(
+        viaopts.partitions[0].detected_fs,
+        plain.partitions[0].detected_fs
+    );
 }

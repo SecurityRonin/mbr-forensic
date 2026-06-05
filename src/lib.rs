@@ -44,7 +44,7 @@ pub mod wipe;
 mod analyse;
 mod diag;
 
-pub use analyse::analyse;
+pub use analyse::{analyse, analyse_with_options, AnalyseOptions};
 pub use boot_code::BootCodeId;
 pub use disk_signature::{find_signature_collisions, SignatureCollision};
 pub use ebr::{EbrChain, EbrEntry};
