@@ -16,11 +16,7 @@ use crate::findings::MbrAnalysis;
 pub fn text_report(a: &MbrAnalysis) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "MBR Forensic Analysis");
-    let _ = writeln!(
-        s,
-        "  disk signature : {:#010x}",
-        a.disk_serial
-    );
+    let _ = writeln!(s, "  disk signature : {:#010x}", a.disk_serial);
     let _ = writeln!(s, "  boot code      : {:?}", a.boot_code_id);
     let _ = writeln!(s, "  partitioning   : {:?}", a.era);
 

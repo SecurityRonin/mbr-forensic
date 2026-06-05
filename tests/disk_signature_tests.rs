@@ -73,7 +73,11 @@ fn windows_mbr_with_zero_signature_is_flagged() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::ZeroDiskSignature)),
         "expected ZeroDiskSignature, got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 

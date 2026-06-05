@@ -28,7 +28,11 @@ fn high_entropy_unknown_boot_code_is_flagged() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::HighEntropySlack { .. })),
         "expected HighEntropySlack, got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 

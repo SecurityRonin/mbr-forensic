@@ -42,8 +42,13 @@ fn analyse_entries(entries: &[(usize, [u8; 16])]) -> Vec<AnomalyKind> {
 fn invalid_status_byte_is_flagged() {
     let k = analyse_entries(&[(0, raw_entry(0x55, 0x83, 2048, 100))]);
     assert!(
-        k.iter()
-            .any(|a| matches!(a, AnomalyKind::InvalidPartitionStatus { index: 0, status: 0x55 })),
+        k.iter().any(|a| matches!(
+            a,
+            AnomalyKind::InvalidPartitionStatus {
+                index: 0,
+                status: 0x55
+            }
+        )),
         "got {k:?}"
     );
 }

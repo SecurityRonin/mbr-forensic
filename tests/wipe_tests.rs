@@ -31,7 +31,9 @@ fn single_repeated_byte_is_uniform() {
 
 #[test]
 fn alternating_is_detected() {
-    let data: Vec<u8> = (0..64).map(|i| if i % 2 == 0 { 0x55 } else { 0xAA }).collect();
+    let data: Vec<u8> = (0..64)
+        .map(|i| if i % 2 == 0 { 0x55 } else { 0xAA })
+        .collect();
     assert_eq!(classify(&data), FillPattern::Alternating(0x55, 0xAA));
 }
 
@@ -43,7 +45,10 @@ fn full_range_ramp_is_high_entropy() {
 
 #[test]
 fn structured_text_is_mixed() {
-    assert_eq!(classify(b"the quick brown fox jumps over"), FillPattern::Mixed);
+    assert_eq!(
+        classify(b"the quick brown fox jumps over"),
+        FillPattern::Mixed
+    );
 }
 
 #[test]
@@ -84,7 +89,11 @@ fn ff_filled_gap_is_flagged_as_wiped() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::WipedRegion { .. })),
         "got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 

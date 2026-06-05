@@ -29,7 +29,11 @@ fn carve_finds_png_at_absolute_offset() {
     let found = carve(&data, 0x5000);
     let png: Vec<&CarvedFile> = found.iter().filter(|c| c.kind == "PNG").collect();
     assert_eq!(png.len(), 1);
-    assert_eq!(png[0].offset, 0x5000 + 100, "offset must be base-relative absolute");
+    assert_eq!(
+        png[0].offset,
+        0x5000 + 100,
+        "offset must be base-relative absolute"
+    );
 }
 
 #[test]
@@ -93,6 +97,10 @@ fn analyse_carves_png_from_gap() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::CarvedArtifact { kind: "PNG" })),
         "got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }

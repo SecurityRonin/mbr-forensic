@@ -131,7 +131,11 @@ fn analyse_flags_chs_lba_inconsistency() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::ChsLbaInconsistency { index: 0 })),
         "expected ChsLbaInconsistency for entry 0, got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -149,7 +153,11 @@ fn analyse_no_chs_anomaly_for_consistent_entry() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::ChsLbaInconsistency { .. })),
         "unexpected ChsLbaInconsistency: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 

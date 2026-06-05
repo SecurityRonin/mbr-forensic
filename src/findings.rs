@@ -291,9 +291,9 @@ impl AnomalyKind {
             K::UnknownBootCode | K::CarvedArtifact { .. } => Severity::Low,
 
             // Info — noted, not suspicious.
-            K::NoBootablePartition
-            | K::PostPartitionSpace { .. }
-            | K::EmptyProtectiveBootCode => Severity::Info,
+            K::NoBootablePartition | K::PostPartitionSpace { .. } | K::EmptyProtectiveBootCode => {
+                Severity::Info
+            }
         }
     }
 

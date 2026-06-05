@@ -20,7 +20,10 @@ fn report_includes_partitions_and_anomalies() {
     let a = analyse(&mut Cursor::new(disk_with_partition()), 100 * 512).unwrap();
     let r = text_report(&a);
     assert!(r.contains("MBR Forensic Analysis"), "{r}");
-    assert!(r.contains("Linux"), "partition type name should appear:\n{r}");
+    assert!(
+        r.contains("Linux"),
+        "partition type name should appear:\n{r}"
+    );
     // All-zero boot code → a WipedBootCode anomaly with an MBR-* code.
     assert!(r.contains("MBR-"), "anomaly codes should appear:\n{r}");
     assert!(r.contains("partition"), "{r}");

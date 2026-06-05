@@ -104,7 +104,10 @@ fn logical_signature_mismatch_is_flagged() {
     assert!(
         k.iter().any(|a| matches!(
             a,
-            AnomalyKind::SignatureMismatch { detected: DetectedFs::Ext, .. }
+            AnomalyKind::SignatureMismatch {
+                detected: DetectedFs::Ext,
+                ..
+            }
         )),
         "expected SignatureMismatch(Ext) on the logical partition; got {k:?}"
     );

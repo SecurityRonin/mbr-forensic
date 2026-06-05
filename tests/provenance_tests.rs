@@ -23,12 +23,18 @@ fn alignment_classification() {
 
 #[test]
 fn era_from_first_partition_lba() {
-    assert_eq!(infer_era(Some(2048), BootCodeId::Unknown), PartitioningEra::Modern);
+    assert_eq!(
+        infer_era(Some(2048), BootCodeId::Unknown),
+        PartitioningEra::Modern
+    );
     assert_eq!(
         infer_era(Some(63), BootCodeId::Unknown),
         PartitioningEra::LegacyCylinder
     );
-    assert_eq!(infer_era(None, BootCodeId::Unknown), PartitioningEra::Unknown);
+    assert_eq!(
+        infer_era(None, BootCodeId::Unknown),
+        PartitioningEra::Unknown
+    );
 }
 
 #[test]

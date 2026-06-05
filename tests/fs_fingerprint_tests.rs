@@ -42,10 +42,17 @@ fn analyse_detects_ext_under_ntfs_declared_partition() {
     assert!(
         analysis.anomalies.iter().any(|a| matches!(
             a.kind,
-            AnomalyKind::SignatureMismatch { detected: DetectedFs::Ext, .. }
+            AnomalyKind::SignatureMismatch {
+                detected: DetectedFs::Ext,
+                ..
+            }
         )),
         "got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -61,18 +68,34 @@ fn analyse_detects_btrfs_under_fat_declared_partition() {
     assert!(
         analysis.anomalies.iter().any(|a| matches!(
             a.kind,
-            AnomalyKind::SignatureMismatch { detected: DetectedFs::Btrfs, .. }
+            AnomalyKind::SignatureMismatch {
+                detected: DetectedFs::Btrfs,
+                ..
+            }
         )),
         "got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 
 #[test]
 fn btrfs_conflicts_with_fat_family() {
     use mbr_forensic::partition::PartitionFamily;
-    assert!(signature::type_conflicts(PartitionFamily::Fat32, DetectedFs::Btrfs));
-    assert!(signature::type_conflicts(PartitionFamily::Ntfs, DetectedFs::Btrfs));
+    assert!(signature::type_conflicts(
+        PartitionFamily::Fat32,
+        DetectedFs::Btrfs
+    ));
+    assert!(signature::type_conflicts(
+        PartitionFamily::Ntfs,
+        DetectedFs::Btrfs
+    ));
     // Linux-family declaration matching a Linux FS is not a conflict.
-    assert!(!signature::type_conflicts(PartitionFamily::Linux, DetectedFs::Btrfs));
+    assert!(!signature::type_conflicts(
+        PartitionFamily::Linux,
+        DetectedFs::Btrfs
+    ));
 }

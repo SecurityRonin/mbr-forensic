@@ -30,21 +30,66 @@ pub struct FileMagic {
 
 /// Curated table of well-known file-header magics (all ≥ 3 bytes).
 pub const FILE_MAGICS: &[FileMagic] = &[
-    FileMagic { kind: "ZIP", magic: b"PK\x03\x04" },
-    FileMagic { kind: "PDF", magic: b"%PDF-" },
-    FileMagic { kind: "PNG", magic: b"\x89PNG\r\n\x1a\n" },
-    FileMagic { kind: "JPEG", magic: b"\xFF\xD8\xFF" },
-    FileMagic { kind: "GIF", magic: b"GIF87a" },
-    FileMagic { kind: "GIF", magic: b"GIF89a" },
-    FileMagic { kind: "BZIP2", magic: b"BZh" },
-    FileMagic { kind: "7Z", magic: b"7z\xBC\xAF\x27\x1C" },
-    FileMagic { kind: "RAR", magic: b"Rar!\x1A\x07" },
-    FileMagic { kind: "XZ", magic: b"\xFD7zXZ\x00" },
-    FileMagic { kind: "ELF", magic: b"\x7FELF" },
-    FileMagic { kind: "RIFF", magic: b"RIFF" },
-    FileMagic { kind: "SQLite", magic: b"SQLite format 3\x00" },
-    FileMagic { kind: "OLE", magic: b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1" },
-    FileMagic { kind: "CAB", magic: b"MSCF" },
+    FileMagic {
+        kind: "ZIP",
+        magic: b"PK\x03\x04",
+    },
+    FileMagic {
+        kind: "PDF",
+        magic: b"%PDF-",
+    },
+    FileMagic {
+        kind: "PNG",
+        magic: b"\x89PNG\r\n\x1a\n",
+    },
+    FileMagic {
+        kind: "JPEG",
+        magic: b"\xFF\xD8\xFF",
+    },
+    FileMagic {
+        kind: "GIF",
+        magic: b"GIF87a",
+    },
+    FileMagic {
+        kind: "GIF",
+        magic: b"GIF89a",
+    },
+    FileMagic {
+        kind: "BZIP2",
+        magic: b"BZh",
+    },
+    FileMagic {
+        kind: "7Z",
+        magic: b"7z\xBC\xAF\x27\x1C",
+    },
+    FileMagic {
+        kind: "RAR",
+        magic: b"Rar!\x1A\x07",
+    },
+    FileMagic {
+        kind: "XZ",
+        magic: b"\xFD7zXZ\x00",
+    },
+    FileMagic {
+        kind: "ELF",
+        magic: b"\x7FELF",
+    },
+    FileMagic {
+        kind: "RIFF",
+        magic: b"RIFF",
+    },
+    FileMagic {
+        kind: "SQLite",
+        magic: b"SQLite format 3\x00",
+    },
+    FileMagic {
+        kind: "OLE",
+        magic: b"\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1",
+    },
+    FileMagic {
+        kind: "CAB",
+        magic: b"MSCF",
+    },
 ];
 
 /// Carve `data` for every known file-header magic, returning each match's type

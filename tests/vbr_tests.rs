@@ -66,12 +66,16 @@ fn analyse_flags_hidden_sectors_mismatch() {
     // Partition table says LBA 2048; VBR still records a stale 63.
     let analysis = analyse(&mut Cursor::new(disk_with_vbr(2048, 63)), 4096 * 512).unwrap();
     assert!(
+        analysis.anomalies.iter().any(|a| matches!(
+            a.kind,
+            AnomalyKind::VbrHiddenSectorsMismatch { index: 0, .. }
+        )),
+        "got: {:?}",
         analysis
             .anomalies
             .iter()
-            .any(|a| matches!(a.kind, AnomalyKind::VbrHiddenSectorsMismatch { index: 0, .. })),
-        "got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }
 

@@ -57,11 +57,11 @@ jobs:
       - uses: taiki-e/install-action@v2 # renovate: pin digest
         with:
           tool: cargo-llvm-cov
-      # Every function must be covered; --show-missing-lines surfaces any
-      # source line with no coverage (generic functions are monomorphized per
-      # reader type, so the aggregate line % can read < 100 even when no line
-      # is uncovered — the function gate is the meaningful invariant).
-      - run: cargo llvm-cov --fail-under-functions 100 --show-missing-lines
+      # Every function across the lib AND the CLI binary must be covered;
+      # --all-features also exercises the serde JSON path. Line % can read < 100
+      # because reader-generic functions are monomorphized per reader type — the
+      # function gate is the meaningful invariant.
+      - run: cargo llvm-cov --all-features --fail-under-functions 100 --show-missing-lines
 
   msrv:
     name: MSRV (1.85)

@@ -133,7 +133,13 @@ pub fn type_conflicts(declared: crate::partition::PartitionFamily, detected: Det
                 | Df::Btrfs
                 | Df::Apfs
         ) | (Pf::Linux, Df::Ntfs | Df::Fat | Df::Luks | Df::Apfs)
-            | (Pf::LinuxSwap, Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs)
-            | (Pf::LinuxLvm, Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs)
+            | (
+                Pf::LinuxSwap,
+                Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs
+            )
+            | (
+                Pf::LinuxLvm,
+                Df::Ntfs | Df::Fat | Df::Ext | Df::Btrfs | Df::Apfs
+            )
     )
 }

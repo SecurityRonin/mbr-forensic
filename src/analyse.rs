@@ -172,9 +172,7 @@ fn first_partition_lba(mbr: &MbrSector) -> Option<u64> {
     mbr.entries
         .iter()
         .filter(|e| {
-            !e.is_empty()
-                && !e.is_extended()
-                && e.type_code.0 != crate::gpt::PROTECTIVE_TYPE_CODE
+            !e.is_empty() && !e.is_extended() && e.type_code.0 != crate::gpt::PROTECTIVE_TYPE_CODE
         })
         .map(|e| e.lba_start as u64)
         .min()
@@ -447,8 +445,14 @@ fn scan_primary_entries<R: Read + Seek>(
 
         check_vbr(reader, i, lba_start, byte_offset, disk_size_bytes, findings);
 
-        let detected_fs =
-            detect_and_check_fs(reader, i, byte_offset, entry.type_code, disk_size_bytes, findings);
+        let detected_fs = detect_and_check_fs(
+            reader,
+            i,
+            byte_offset,
+            entry.type_code,
+            disk_size_bytes,
+            findings,
+        );
 
         summaries.push(PartitionSummary {
             index: i,
@@ -502,7 +506,9 @@ fn detect_and_check_fs<R: Read + Seek>(
 /// convention and the CHS overflow marker are both accepted (see
 /// [`crate::partition::chs_consistency`]).
 fn check_chs_lba(index: usize, entry: &crate::partition::PartitionEntry, findings: &mut Findings) {
-    use crate::partition::{chs_consistency, ChsConsistency, STD_HEADS_PER_CYL, STD_SECTORS_PER_TRACK};
+    use crate::partition::{
+        chs_consistency, ChsConsistency, STD_HEADS_PER_CYL, STD_SECTORS_PER_TRACK,
+    };
     let first = chs_consistency(
         entry.chs_first,
         entry.lba_start,
@@ -516,7 +522,10 @@ fn check_chs_lba(index: usize, entry: &crate::partition::PartitionEntry, finding
         STD_SECTORS_PER_TRACK,
     );
     if first == ChsConsistency::Inconsistent || last == ChsConsistency::Inconsistent {
-        findings.record(AnomalyKind::ChsLbaInconsistency { index }, entry_offset(index));
+        findings.record(
+            AnomalyKind::ChsLbaInconsistency { index },
+            entry_offset(index),
+        );
     }
 }
 
@@ -639,7 +648,14 @@ fn walk_extended<R: Read + Seek>(
 
         // Logical partitions get the same scrutiny as primaries: BPB
         // hidden-sectors relocation check and FS signature-mismatch detection.
-        check_vbr(reader, index, lba_start, byte_offset, disk_size_bytes, findings);
+        check_vbr(
+            reader,
+            index,
+            lba_start,
+            byte_offset,
+            disk_size_bytes,
+            findings,
+        );
         let detected_fs = detect_and_check_fs(
             reader,
             index,

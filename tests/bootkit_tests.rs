@@ -35,7 +35,11 @@ fn scan_dedups_repeated_family_markers() {
     boot[0x10..0x10 + 22].copy_from_slice(b"Your PC is now Stoned!");
     boot[0x80..0x80 + 18].copy_from_slice(b"LEGALISE MARIJUANA");
     let hits = scan(&boot);
-    assert_eq!(hits.iter().filter(|&&n| n == "Stoned").count(), 1, "got {hits:?}");
+    assert_eq!(
+        hits.iter().filter(|&&n| n == "Stoned").count(),
+        1,
+        "got {hits:?}"
+    );
 }
 
 #[test]
@@ -57,6 +61,10 @@ fn analyse_flags_known_bootkit() {
             .iter()
             .any(|a| matches!(a.kind, AnomalyKind::KnownBootkit { name: "Stoned" })),
         "got: {:?}",
-        analysis.anomalies.iter().map(|a| a.code).collect::<Vec<_>>()
+        analysis
+            .anomalies
+            .iter()
+            .map(|a| a.code)
+            .collect::<Vec<_>>()
     );
 }

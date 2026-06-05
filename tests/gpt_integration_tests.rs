@@ -53,5 +53,8 @@ fn plain_mbr_disk_has_no_gpt() {
     d[510] = 0x55;
     d[511] = 0xAA;
     let a = analyse(&mut Cursor::new(d), SECTORS * 512).unwrap();
-    assert!(a.gpt.is_none(), "a non-GPT disk must not produce a GPT analysis");
+    assert!(
+        a.gpt.is_none(),
+        "a non-GPT disk must not produce a GPT analysis"
+    );
 }

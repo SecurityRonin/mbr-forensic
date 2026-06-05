@@ -60,13 +60,16 @@ fn valid_protective_mbr_is_clean() {
     // Single 0xEE at LBA 1 covering the whole disk + real GPT header.
     let ee = make_entry(0xEE, 1, (SECTORS - 1) as u32);
     let k = kinds(build(&[(0, ee)], true));
-    assert!(!k.iter().any(|a| matches!(
-        a,
-        AnomalyKind::HybridMbr { .. }
-            | AnomalyKind::ProtectiveMbrUndersized { .. }
-            | AnomalyKind::HiddenGpt
-            | AnomalyKind::SpoofedProtectiveMbr
-    )), "unexpected GPT anomaly: {k:?}");
+    assert!(
+        !k.iter().any(|a| matches!(
+            a,
+            AnomalyKind::HybridMbr { .. }
+                | AnomalyKind::ProtectiveMbrUndersized { .. }
+                | AnomalyKind::HiddenGpt
+                | AnomalyKind::SpoofedProtectiveMbr
+        )),
+        "unexpected GPT anomaly: {k:?}"
+    );
 }
 
 #[test]
@@ -74,7 +77,10 @@ fn hybrid_mbr_flagged() {
     let ee = make_entry(0xEE, 1, (SECTORS - 1) as u32);
     let ntfs = make_entry(0x07, 2048, 1000);
     let k = kinds(build(&[(0, ee), (1, ntfs)], true));
-    assert!(k.iter().any(|a| matches!(a, AnomalyKind::HybridMbr { .. })), "got {k:?}");
+    assert!(
+        k.iter().any(|a| matches!(a, AnomalyKind::HybridMbr { .. })),
+        "got {k:?}"
+    );
 }
 
 #[test]
@@ -83,7 +89,8 @@ fn undersized_protective_mbr_flagged() {
     let ee = make_entry(0xEE, 1, 1000);
     let k = kinds(build(&[(0, ee)], true));
     assert!(
-        k.iter().any(|a| matches!(a, AnomalyKind::ProtectiveMbrUndersized { .. })),
+        k.iter()
+            .any(|a| matches!(a, AnomalyKind::ProtectiveMbrUndersized { .. })),
         "got {k:?}"
     );
 }
@@ -94,7 +101,10 @@ fn hidden_gpt_flagged() {
     // partition. GPT-unaware analysis would miss the real GPT layout.
     let ntfs = make_entry(0x07, 2048, 1000);
     let k = kinds(build(&[(0, ntfs)], true));
-    assert!(k.iter().any(|a| matches!(a, AnomalyKind::HiddenGpt)), "got {k:?}");
+    assert!(
+        k.iter().any(|a| matches!(a, AnomalyKind::HiddenGpt)),
+        "got {k:?}"
+    );
 }
 
 #[test]
@@ -103,7 +113,8 @@ fn spoofed_protective_mbr_flagged() {
     let ee = make_entry(0xEE, 1, (SECTORS - 1) as u32);
     let k = kinds(build(&[(0, ee)], false));
     assert!(
-        k.iter().any(|a| matches!(a, AnomalyKind::SpoofedProtectiveMbr)),
+        k.iter()
+            .any(|a| matches!(a, AnomalyKind::SpoofedProtectiveMbr)),
         "got {k:?}"
     );
 }
