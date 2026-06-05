@@ -258,6 +258,7 @@ One forensic parser per partitioning scheme — each a pure `Read + Seek` librar
 |---|---|
 | [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GUID Partition Table (UEFI) — backup-header reconciliation, CRC32, phantom entries; called automatically when this crate detects a protective MBR |
 | [`apm-forensic`](https://github.com/SecurityRonin/apm-forensic) | Apple Partition Map (classic Mac and hybrid optical media) |
+| [`disk-forensic`](https://github.com/SecurityRonin/disk-forensic) | **Orchestrator** — point it at any disk; it auto-detects MBR/GPT/APM and dispatches to the right parser |
 
 For forensic integrity analysis of container formats:
 
