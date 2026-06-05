@@ -8,6 +8,36 @@
 
 Forensic-grade Master Boot Record (MBR) parser for Rust. Goes beyond partition enumeration to surface structural anomalies, slack-space content, anti-forensic indicators, and cross-field inconsistencies that every other MBR crate silently ignores.
 
+## Command-line tool
+
+```console
+$ cargo run --bin mbr-forensic -- disk.img
+```
+
+```text
+MBR Forensic Analysis
+  disk signature : 0x00000000
+  boot code      : AllZeros
+  partitioning   : Unknown
+
+Partition table (1 entries):
+  [0] GPT Protective MBR       LBA            1..=8191          fs=Unknown
+
+Anomalies (2):
+  [INFO] MBR-BOOT-PROTECTIVE-EMPTY @ 0x0: MBR boot code is empty (all zeros), which is expected on a GPT/UEFI disk — the protective MBR's boot code is never executed
+  [INFO] MBR-BOOT-NONE @ 0x1be: No partition is marked bootable
+
+GPT cross-check: 2 partition entries, 0 GPT anomalies
+
+Highest severity: INFO
+```
+
+The binary exits `0` when clean and `1` when any anomaly is present, so it drops
+straight into a triage pipeline. Add `--json` (with `--features serde`) for
+machine-readable output. When a protective MBR is found, the real GPT is parsed
+automatically (via [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic))
+and cross-checked.
+
 ## Rust library
 
 ```toml
@@ -191,7 +221,7 @@ All diagnostics live in one place (`src/diag.rs`), so the full set of observable
 
 ## Testing
 
-144 tests (unit + integration; 145 with `--features trace`) covering every public API, every error path, every anomaly kind, and adversarial inputs (overflowing EBR chains, truncated images, seek failures). **100% function coverage with no uncovered lines** — verified in CI.
+224 tests (unit + integration) covering every public API, every error path, every anomaly kind, and adversarial inputs (overflowing EBR chains, truncated images, seek failures). **100% function coverage with no uncovered lines** — verified in CI.
 
 ```bash
 cargo test                 # default features
@@ -227,10 +257,6 @@ For forensic integrity analysis of container formats:
 | [`ewf-forensic`](https://github.com/SecurityRonin/ewf-forensic) | E01 structural audit, Adler-32 repair |
 | [`vhdx-forensic`](https://github.com/SecurityRonin/vhdx-forensic) | VHDX integrity analysis |
 | [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GPT forensic analysis (backup header, CRC32, phantom entries) |
-
-## License
-
-MIT
 
 ---
 
