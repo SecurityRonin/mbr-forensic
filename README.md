@@ -250,13 +250,21 @@ cargo llvm-cov --show-missing-lines
 | [`qcow2`](https://github.com/SecurityRonin/qcow2) | QEMU / KVM QCOW2 |
 | [`dd`](https://github.com/SecurityRonin/dd) | Raw / flat / dd images |
 
+## Sibling crates
+
+One forensic parser per partitioning scheme — each a pure `Read + Seek` library that composes with the container crates above:
+
+| Crate | Scheme |
+|---|---|
+| [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GUID Partition Table (UEFI) — backup-header reconciliation, CRC32, phantom entries; called automatically when this crate detects a protective MBR |
+| [`apm-forensic`](https://github.com/SecurityRonin/apm-forensic) | Apple Partition Map (classic Mac and hybrid optical media) |
+
 For forensic integrity analysis of container formats:
 
 | Crate | Format |
 |---|---|
 | [`ewf-forensic`](https://github.com/SecurityRonin/ewf-forensic) | E01 structural audit, Adler-32 repair |
 | [`vhdx-forensic`](https://github.com/SecurityRonin/vhdx-forensic) | VHDX integrity analysis |
-| [`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) | GPT forensic analysis (backup header, CRC32, phantom entries) |
 
 ---
 
