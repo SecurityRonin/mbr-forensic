@@ -36,7 +36,6 @@ pub mod gpt;
 pub mod mbr;
 pub mod partition;
 pub mod provenance;
-pub mod report;
 pub mod signature;
 pub mod vbr;
 pub mod wipe;

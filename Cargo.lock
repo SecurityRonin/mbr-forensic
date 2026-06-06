@@ -50,9 +50,9 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "forensicnomicon"
-version = "0.2.0"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2da9447aa9b07772556dbd2a5640c0270af81eb4d4aca5b1f428868240bcd561"
+checksum = "b0799cf10b47a03a2f175cff5366f20c26ec8925e518f4354727471f74cf5990"
 
 [[package]]
 name = "getrandom"
@@ -69,9 +69,9 @@ dependencies = [
 
 [[package]]
 name = "gpt-forensic"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cfa0d14001698c46bbe2a2db4868b8155cdff82aecd0d2224716ae8b4ea9fdb"
+checksum = "fa28fba6ea22e269dbd679547171f8ef8abe92b5e260384a05542555fa252eb1"
 dependencies = [
  "forensicnomicon",
  "serde",
@@ -155,7 +155,7 @@ checksum = "113b30b4cd05f7c06868fdb2854f66a7b9fece9a48425351cd532e810d74024f"
 
 [[package]]
 name = "mbr-forensic"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "forensicnomicon",
  "gpt-forensic",
