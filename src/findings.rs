@@ -26,31 +26,27 @@ use crate::wipe::FillPattern;
 /// partition at LBA 63).
 const PRE_PARTITION_BENIGN_LBA: u64 = 63;
 
-/// Severity level of a forensic anomaly.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
-pub enum Severity {
-    /// Informational — worth noting but not inherently suspicious.
-    Info,
-    /// Low — minor deviation; may be benign.
-    Low,
-    /// Medium — warrants investigation; unusual in legitimate images.
-    Medium,
-    /// High — strong indicator of tampering, anti-forensics, or data hiding.
-    High,
-    /// Critical — definitive indicator of structural compromise.
-    Critical,
-}
+/// The canonical 5-level severity scale, shared across every SecurityRonin
+/// analyzer via [`forensicnomicon::report`].
+pub use forensicnomicon::report::Severity;
 
-impl fmt::Display for Severity {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Severity::Info => "INFO",
-            Severity::Low => "LOW",
-            Severity::Medium => "MEDIUM",
-            Severity::High => "HIGH",
-            Severity::Critical => "CRITICAL",
-        })
+impl forensicnomicon::report::Observation for Anomaly {
+    fn severity(&self) -> Option<Severity> {
+        Some(self.severity)
+    }
+    fn code(&self) -> &'static str {
+        self.code
+    }
+    fn note(&self) -> String {
+        self.note.clone()
+    }
+    fn evidence(&self) -> Vec<forensicnomicon::report::Evidence> {
+        // The anomaly's byte offset travels with the finding as evidence.
+        vec![forensicnomicon::report::Evidence {
+            field: "offset".to_string(),
+            value: format!("{:#x}", self.offset),
+            location: Some(forensicnomicon::report::Location::ByteOffset(self.offset)),
+        }]
     }
 }
 

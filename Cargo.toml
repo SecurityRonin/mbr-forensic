@@ -1,6 +1,6 @@
 [package]
 name = "mbr-forensic"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
@@ -15,7 +15,7 @@ thiserror = "2"
 tracing = { version = "0.1", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 # Knowledge layer (sibling repo): partition type code / FS / boot signatures.
-forensicnomicon = "0.2.2"
+forensicnomicon = { version = "0.3.0", path = "../forensicnomicon" }
 # Sibling crate: when a disk turns out to be GPT, its real GUID Partition Table
 # is parsed automatically. On by default via the `gpt` feature.
 gpt-forensic = { version = "0.3.0", optional = true }
@@ -25,7 +25,7 @@ default = ["gpt"]
 # Forward internal diagnostics to the `tracing` ecosystem for structured,
 # level-filtered debugging. Off by default — zero logging dependency.
 trace = ["dep:tracing"]
-serde = ["dep:serde", "gpt-forensic?/serde"]
+serde = ["forensicnomicon/serde", "dep:serde", "gpt-forensic?/serde"]
 # Automatically parse the real GPT (via gpt-forensic) when a protective MBR /
 # EFI PART header is detected. Disable with --no-default-features for a pure,
 # dependency-free MBR parser.
