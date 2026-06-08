@@ -21,7 +21,7 @@ serde = ["dep:serde", "mbr/serde", "forensicnomicon/serde", "gpt-partition-foren
 [dependencies]
 mbr = { version = "0.4.1", path = "../core", package = "mbr-partition-core" }
 forensicnomicon = "0.3.1"
-gpt-partition-forensic = { version = "0.4.1", path = "../../gpt-forensic/forensic", optional = true }
+gpt-partition-forensic = { version = "0.4.1", optional = true }
 tracing = { version = "0.1", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 
