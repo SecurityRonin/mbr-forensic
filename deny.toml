@@ -1,6 +1,6 @@
 [graph]
 # Only check the main crate, not the fuzz workspace.
-exclude = ["mbr-forensic-fuzz"]
+exclude = ["mbr-partition-fuzz"]
 
 # cargo-deny v2: anything not in `allow` is denied — no separate deny list.
 # Copyleft licenses (GPL/LGPL/AGPL) are excluded simply by omission.

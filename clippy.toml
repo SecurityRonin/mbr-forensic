@@ -1,0 +1,9 @@
+# Allow `unwrap()`/`expect()` inside test functions and `#[cfg(test)]` modules.
+# Production code keeps `clippy::unwrap_used = deny` (see workspace Cargo.toml);
+# tests legitimately unwrap to fail loudly, so this is the upstream-recommended
+# exception rather than scattering `#[allow]` across every test module.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Product/format names that look like code identifiers to doc_markdown.
+doc-valid-idents = ["VMware", "FreeDOS", "MSDOS", "MSWIN", "mkdosfs", "exFAT", "EXFAT", "APFS", "NXSB", "ext2/3/4", "ext4", "Btrfs", "LVM2", "LABELONE", "SWAPSPACE2", "PAGESPACE1", "EXTLINUX", "Syslinux", "MountedDevices", "..", "SHA-256", "MD5", "NTFS", "GRUB", "GPT", "MBR", "EBR", "VBR", "CHS", "LBA", "BCD", "EFI", "FAT12", "FAT16", "FAT32", "HFS", "SecurityRonin", "TypeCode", "forensicnomicon", "BootCodeId", "MbrAnalysis"]

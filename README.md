@@ -1,9 +1,9 @@
-# mbr-forensic
+# mbr-partition-forensic
 
-[![Crates.io](https://img.shields.io/crates/v/mbr-forensic.svg)](https://crates.io/crates/mbr-forensic)
-[![docs.rs](https://img.shields.io/docsrs/mbr-forensic)](https://docs.rs/mbr-forensic)
+[![Crates.io](https://img.shields.io/crates/v/mbr-partition-forensic.svg)](https://crates.io/crates/mbr-partition-forensic)
+[![docs.rs](https://img.shields.io/docsrs/mbr-partition-forensic)](https://docs.rs/mbr-partition-forensic)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/SecurityRonin/mbr-forensic/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/mbr-forensic/actions)
+[![CI](https://github.com/SecurityRonin/mbr-partition-forensic/actions/workflows/ci.yml/badge.svg)](https://github.com/SecurityRonin/mbr-partition-forensic/actions)
 [![Sponsor](https://img.shields.io/badge/sponsor-h4x0r-ea4aaa?logo=github-sponsors)](https://github.com/sponsors/h4x0r)
 
 Forensic-grade Master Boot Record (MBR) parser for Rust. Goes beyond partition enumeration to surface structural anomalies, slack-space content, anti-forensic indicators, and cross-field inconsistencies that every other MBR crate silently ignores.
@@ -26,9 +26,11 @@ GPT cross-check: 2 partition entries, 0 GPT anomalies
 Highest severity: INFO
 ```
 
-`mbr-forensic` is a **library** (use `mbr_forensic::report::text_report` to render
-the above; when a protective MBR is found the real GPT is parsed automatically via
-[`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) and cross-checked).
+`mbr-partition-forensic` is a **library** that returns the analysis above as typed
+findings; when a protective MBR is found the real GPT is parsed automatically via
+[`gpt-forensic`](https://github.com/SecurityRonin/gpt-forensic) and cross-checked. The
+pure parser layer lives in the sibling [`mbr-partition-core`](https://crates.io/crates/mbr-partition-core)
+crate, re-exported here so a single dependency gives you both.
 For a ready-made command line that auto-detects the scheme and prints this for
 *any* disk, install the unified
 [`disk4n6`](https://github.com/SecurityRonin/disk-forensic) tool
@@ -38,13 +40,13 @@ For a ready-made command line that auto-detects the scheme and prints this for
 
 ```toml
 [dependencies]
-mbr-forensic = "0.1"
+mbr-partition-forensic = "0.4"
 ```
 
 ## Quick start
 
 ```rust
-use mbr_forensic::{parse_mbr_sector, analyse};
+use mbr_partition_forensic::{parse_mbr_sector, analyse};
 use std::fs::File;
 
 // Pure parsing from a 512-byte buffer — no I/O, no panics:
@@ -54,14 +56,14 @@ let analysis = analyse(&mut f, disk_size_bytes)?;
 for anomaly in &analysis.anomalies {
     println!("[{:?}] offset {:#x}  {}", anomaly.severity, anomaly.offset, anomaly.note);
 }
-# Ok::<(), mbr_forensic::Error>(())
+# Ok::<(), mbr_partition_forensic::Error>(())
 ```
 
 ## What makes this different from every other MBR crate
 
-Most MBR crates answer one question: "what partitions are on this disk?" `mbr-forensic` answers the questions a digital forensics examiner actually needs:
+Most MBR crates answer one question: "what partitions are on this disk?" `mbr-partition-forensic` answers the questions a digital forensics examiner actually needs:
 
-| Feature | Other MBR crates | mbr-forensic |
+| Feature | Other MBR crates | mbr-partition-forensic |
 |---|---|---|
 | Partition enumeration | ✅ | ✅ |
 | Boot code identification (GRUB 2, Windows, Syslinux …) | ✗ | ✅ |
@@ -105,7 +107,7 @@ HighEntropySlack         high-entropy bytes in a slack region
 
 ## Filesystem fingerprinting
 
-`mbr-forensic` reads the first sector of each partition and matches it against known magic bytes, independently of the declared partition type. A mismatch between the declared type and the detected filesystem is surfaced as a `SignatureMismatch` anomaly.
+`mbr-partition-forensic` reads the first sector of each partition and matches it against known magic bytes, independently of the declared partition type. A mismatch between the declared type and the detected filesystem is surfaced as a `SignatureMismatch` anomaly.
 
 Detected filesystem types: `Ext` (ext2/3/4), `Ntfs`, `Fat`, `ExFat`, `Apfs`, `Xfs`, `LinuxSwap`, `LinuxLvm`, `Luks`, `AllZeros`, `Unknown`.
 
@@ -129,7 +131,7 @@ The first 446 bytes of the MBR are matched against signatures for known bootload
 ### Parse a raw 512-byte MBR sector (pure, no I/O)
 
 ```rust
-use mbr_forensic::parse_mbr_sector;
+use mbr_partition_forensic::parse_mbr_sector;
 
 let sector = std::fs::read("disk.img")?;
 let mbr = parse_mbr_sector(&sector[..512])?;
@@ -140,13 +142,13 @@ for (i, entry) in mbr.entries.iter().enumerate() {
         println!("  [{i}] type={} lba={} count={}", entry.type_code.name(), entry.lba_start, entry.lba_count);
     }
 }
-# Ok::<(), mbr_forensic::Error>(())
+# Ok::<(), mbr_partition_forensic::Error>(())
 ```
 
 ### Full forensic analysis from any `Read + Seek`
 
 ```rust
-use mbr_forensic::analyse;
+use mbr_partition_forensic::analyse;
 use std::fs::File;
 
 let mut f = File::open("disk.img")?;
@@ -158,16 +160,16 @@ println!("Partitions: {}", analysis.partitions.len());
 println!("Gaps: {}", analysis.gaps.len());
 println!("Anomalies: {}", analysis.anomalies.len());
 
-for a in analysis.anomalies.iter().filter(|a| a.severity >= mbr_forensic::Severity::Medium) {
+for a in analysis.anomalies.iter().filter(|a| a.severity >= mbr_partition_forensic::Severity::Medium) {
     println!("  [{:?}] {}", a.severity, a.note);
 }
-# Ok::<(), mbr_forensic::Error>(())
+# Ok::<(), mbr_partition_forensic::Error>(())
 ```
 
 ### Entropy analysis on slack regions
 
 ```rust
-use mbr_forensic::entropy;
+use mbr_partition_forensic::entropy;
 
 let slack = &sector[446..512]; // example: partition table area
 let e = entropy::shannon(slack);
@@ -178,7 +180,7 @@ if e > 6.0 {
 
 ## Security
 
-`mbr-forensic` is designed for use on untrusted disk images from potentially compromised systems:
+`mbr-partition-forensic` is designed for use on untrusted disk images from potentially compromised systems:
 
 - **No panics on malicious input** — all arithmetic uses checked or saturating operations; fuzz-tested with `cargo fuzz`
 - **EBR cycle detection** — visited-LBA set prevents infinite loops
@@ -199,18 +201,18 @@ cargo +nightly fuzz run analyse_full
 
 ## Debugging with the `trace` feature
 
-`mbr-forensic` has no logging dependency by default. Enable the `trace` feature to forward every analysis event — each recorded anomaly, the run summary, EBR walk failures, and partition read errors — to the [`tracing`](https://docs.rs/tracing) ecosystem:
+`mbr-partition-forensic` has no logging dependency by default. Enable the `trace` feature to forward every analysis event — each recorded anomaly, the run summary, EBR walk failures, and partition read errors — to the [`tracing`](https://docs.rs/tracing) ecosystem:
 
 ```toml
 [dependencies]
-mbr-forensic = { version = "0.1", features = ["trace"] }
+mbr-partition-forensic = { version = "0.4", features = ["trace"] }
 ```
 
 ```rust
 tracing_subscriber::fmt().with_max_level(tracing::Level::DEBUG).init();
-let analysis = mbr_forensic::analyse(&mut reader, disk_size)?;
+let analysis = mbr_partition_forensic::analyse(&mut reader, disk_size)?;
 // → DEBUG analyse: anomaly recorded code="MBR-PART-OVERLAP" severity=CRITICAL offset=0x1be ...
-# Ok::<(), mbr_forensic::Error>(())
+# Ok::<(), mbr_partition_forensic::Error>(())
 ```
 
 All diagnostics live in one place (`src/diag.rs`), so the full set of observable events is discoverable at a glance.
@@ -235,7 +237,7 @@ cargo llvm-cov --show-missing-lines
 
 ## Related
 
-**mbr-forensic** analyses the partition layout. To read the actual filesystem data that lives inside each partition, these crates provide `Read + Seek` over common disk container formats:
+**mbr-partition-forensic** analyses the partition layout. To read the actual filesystem data that lives inside each partition, these crates provide `Read + Seek` over common disk container formats:
 
 | Crate | Format |
 |---|---|
@@ -265,4 +267,4 @@ For forensic integrity analysis of container formats:
 
 ---
 
-[Privacy Policy](https://securityronin.github.io/mbr-forensic/privacy/) · [Terms of Service](https://securityronin.github.io/mbr-forensic/terms/) · © 2026 Security Ronin Ltd
+[Privacy Policy](https://securityronin.github.io/mbr-partition-forensic/privacy/) · [Terms of Service](https://securityronin.github.io/mbr-partition-forensic/terms/) · © 2026 Security Ronin Ltd

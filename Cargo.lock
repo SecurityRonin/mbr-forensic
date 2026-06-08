@@ -10,9 +10,9 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "bitflags"
-version = "2.12.1"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84d7ced0ae9557296835c32bf1b1e02b44c746701f898460fb000d7eaa84f00a"
+checksum = "b4388bee8683e3d04af747c73422af53102d2bd24d9eadb6cbc100baef4b43f8"
 
 [[package]]
 name = "cfg-if"
@@ -50,9 +50,12 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "forensicnomicon"
-version = "0.2.2"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0799cf10b47a03a2f175cff5366f20c26ec8925e518f4354727471f74cf5990"
+checksum = "f66c898c0f3813cb476c7d1f9e78919566e753b8ce5d581ca8d0f364a55b04b5"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "getrandom"
@@ -69,9 +72,9 @@ dependencies = [
 
 [[package]]
 name = "gpt-forensic"
-version = "0.3.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa28fba6ea22e269dbd679547171f8ef8abe92b5e260384a05542555fa252eb1"
+checksum = "c5f839f7c99ab473840f6cb43da5d2bdd16a11fb7d5fbf3a0aec1afc95c63e7b"
 dependencies = [
  "forensicnomicon",
  "serde",
@@ -149,20 +152,30 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "log"
-version = "0.4.31"
+version = "0.4.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "113b30b4cd05f7c06868fdb2854f66a7b9fece9a48425351cd532e810d74024f"
+checksum = "953f07c43838f8e6f9758cab68bf5bed85465e7587ebe0b823f1bcd81978ad3a"
 
 [[package]]
-name = "mbr-forensic"
-version = "0.3.0"
+name = "mbr-partition-core"
+version = "0.4.1"
+dependencies = [
+ "forensicnomicon",
+ "serde",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "mbr-partition-forensic"
+version = "0.4.1"
 dependencies = [
  "forensicnomicon",
  "gpt-forensic",
+ "mbr-partition-core",
  "serde",
  "serde_json",
  "tempfile",
- "thiserror",
  "tracing",
  "tracing-subscriber",
 ]

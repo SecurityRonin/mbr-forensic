@@ -1,38 +1,32 @@
-[package]
-name = "mbr-forensic"
-version = "0.4.1"
-edition = "2021"
-rust-version = "1.85"
-license = "MIT"
-description = "Forensic MBR parser — structure, anomaly detection, gap analysis, slack-space carving, and filesystem fingerprinting"
-repository = "https://github.com/SecurityRonin/mbr-forensic"
-keywords = ["forensics", "mbr", "partition", "disk-image"]
-categories = ["parser-implementations", "filesystem"]
-exclude = ["fuzz/", ".github/", ".pre-commit-config.yaml", "deny.toml", "renovate.json"]
+[workspace]
+resolver = "2"
+members = ["core", "forensic"]
 
-[dependencies]
-thiserror = "2"
-tracing = { version = "0.1", optional = true }
-serde = { version = "1", features = ["derive"], optional = true }
-# Knowledge layer (sibling repo): partition type code / FS / boot signatures.
-forensicnomicon = "0.3.1"
-# Sibling crate: when a disk turns out to be GPT, its real GUID Partition Table
-# is parsed automatically. On by default via the `gpt` feature.
-gpt-forensic = { version = "0.4.0", optional = true }
+[workspace.lints.rust]
+unsafe_code = "forbid"
 
-[features]
-default = ["gpt"]
-# Forward internal diagnostics to the `tracing` ecosystem for structured,
-# level-filtered debugging. Off by default — zero logging dependency.
-trace = ["dep:tracing"]
-serde = ["forensicnomicon/serde", "dep:serde", "gpt-forensic?/serde"]
-# Automatically parse the real GPT (via gpt-forensic) when a protective MBR /
-# EFI PART header is detected. Disable with --no-default-features for a pure,
-# dependency-free MBR parser.
-gpt = ["dep:gpt-forensic"]
-
-[dev-dependencies]
-tempfile = "3"
-serde_json = "1"
-tracing = "0.1"
-tracing-subscriber = "0.3"
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+all = { level = "warn", priority = -1 }
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+unwrap_used = { level = "deny", priority = 0 }
+expect_used = { level = "deny", priority = 0 }
+module_name_repetitions = { level = "allow", priority = 1 }
+must_use_candidate = { level = "allow", priority = 1 }
+missing_errors_doc = { level = "allow", priority = 1 }
+missing_panics_doc = { level = "allow", priority = 1 }
+cast_possible_truncation = { level = "allow", priority = 1 }
+cast_possible_wrap = { level = "allow", priority = 1 }
+cast_sign_loss = { level = "allow", priority = 1 }
+cast_precision_loss = { level = "allow", priority = 1 }
+# Same stylistic family as the cast_* allows above: width-widening casts on
+# disk-geometry arithmetic read more clearly as `x as u64` than `u64::from(x)`.
+cast_lossless = { level = "allow", priority = 1 }
+# Hex/byte signature tables and disk-offset literals are deliberately written
+# without digit separators to mirror the on-disk layout.
+unreadable_literal = { level = "allow", priority = 1 }
+# The partition-family/filesystem compatibility matrix and the anomaly builder
+# are intentionally long, flat, and exhaustive — splitting them hurts clarity.
+too_many_lines = { level = "allow", priority = 1 }
+unnested_or_patterns = { level = "allow", priority = 1 }

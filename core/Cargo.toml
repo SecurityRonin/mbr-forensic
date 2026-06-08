@@ -1,0 +1,30 @@
+[package]
+name = "mbr-partition-core"
+version = "0.4.1"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+description = "Pure-Rust read-only Master Boot Record (MBR) parser — sectors, partition tables, EBR chains, GPT/VBR cross-validation primitives, boot-code and filesystem fingerprinting"
+repository = "https://github.com/SecurityRonin/mbr-partition-forensic"
+homepage = "https://github.com/SecurityRonin/mbr-partition-forensic"
+documentation = "https://docs.rs/mbr-partition-core"
+keywords = ["forensics", "mbr", "partition", "disk-image"]
+categories = ["parser-implementations", "filesystem"]
+exclude = ["fuzz/", ".github/", ".pre-commit-config.yaml", "deny.toml", "renovate.json"]
+
+[lib]
+name = "mbr"
+
+[features]
+default = []
+trace = ["dep:tracing"]
+serde = ["forensicnomicon/serde", "dep:serde"]
+
+[dependencies]
+thiserror = "2"
+forensicnomicon = "0.3.1"
+tracing = { version = "0.1", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+
+[lints]
+workspace = true
