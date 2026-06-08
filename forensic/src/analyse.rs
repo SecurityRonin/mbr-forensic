@@ -195,7 +195,7 @@ pub fn analyse_with_options<R: Read + Seek>(
     // automatically via the sibling gpt-forensic crate.
     #[cfg(feature = "gpt")]
     let gpt = if gpt_header {
-        gpt_forensic::analyse(reader, disk_size_bytes).ok()
+        gpt_partition_forensic::analyse(reader, disk_size_bytes).ok()
     } else {
         None
     };

@@ -516,7 +516,7 @@ pub struct MbrAnalysis {
     /// real GUID Partition Table parsed automatically via `gpt-forensic`.
     /// `None` for legacy-MBR disks. Requires the default `gpt` feature.
     #[cfg(feature = "gpt")]
-    pub gpt: Option<gpt_forensic::GptAnalysis>,
+    pub gpt: Option<gpt_partition_forensic::GptAnalysis>,
     /// All detected anomalies, in discovery order.
     pub anomalies: Vec<Anomaly>,
 }
